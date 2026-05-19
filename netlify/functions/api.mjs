@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "apocalypse-249-player-app";
+const IMAGE_STORE_NAME = "apocalypse-249-player-images";
 const STATE_KEY = "state";
 const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const PLAYER_PREFIX = "APOC-PLAYER";
@@ -53,6 +54,10 @@ export default async (request) => {
       return json(200, { ok: true });
     }
 
+    if (request.method === "GET" && action.startsWith("image/")) {
+      return getImage(action.replace(/^image\//, ""));
+    }
+
     const state = await loadState();
 
     if (action === "auth/register") return register(state, body);
@@ -90,12 +95,84 @@ async function loadState() {
   const saved = await store.get(STATE_KEY, { type: "json" });
   const state = saved || defaultState();
   migrateState(state);
+  const imageMigrationChangedState = await externalizeStateImages(state);
+  if (imageMigrationChangedState) {
+    await store.setJSON(STATE_KEY, state);
+  }
   return state;
 }
 
 async function saveState(state) {
   const store = getStore(STORE_NAME);
   await store.setJSON(STATE_KEY, state);
+}
+
+async function saveImage(dataUrl, folder) {
+  if (!isDataImage(dataUrl)) return dataUrl || "";
+
+  const match = dataUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/);
+  if (!match) return "";
+
+  const mimeType = match[1] === "image/jpg" ? "image/jpeg" : match[1];
+  const extension = mimeType.split("/")[1].replace("jpeg", "jpg");
+  const key = `${folder}-${crypto.randomUUID()}.${extension}`;
+  const buffer = Buffer.from(match[2], "base64");
+  const store = getStore(IMAGE_STORE_NAME);
+
+  await store.set(key, buffer, {
+    metadata: {
+      contentType: mimeType
+    }
+  });
+
+  return `/.netlify/functions/api/image/${key}`;
+}
+
+async function getImage(key) {
+  if (!key || key.includes("..")) return new Response("Not found", { status: 404 });
+
+  const store = getStore(IMAGE_STORE_NAME);
+  const entry = await store.getWithMetadata(key, { type: "arrayBuffer" });
+  if (!entry || !entry.data) return new Response("Not found", { status: 404 });
+
+  return new Response(entry.data, {
+    status: 200,
+    headers: {
+      "content-type": entry.metadata?.contentType || "image/jpeg",
+      "cache-control": "public, max-age=31536000, immutable"
+    }
+  });
+}
+
+function isDataImage(value) {
+  return typeof value === "string" && value.startsWith("data:image/");
+}
+
+async function externalizeStateImages(state) {
+  let changed = false;
+
+  for (const user of state.users) {
+    if (isDataImage(user.photo)) {
+      user.photo = await saveImage(user.photo, "profile");
+      changed = true;
+    }
+
+    for (const rif of user.rifs || []) {
+      if (isDataImage(rif.photo)) {
+        rif.photo = await saveImage(rif.photo, "rif");
+        changed = true;
+      }
+    }
+  }
+
+  for (const announcement of state.announcements) {
+    if (isDataImage(announcement.image)) {
+      announcement.image = await saveImage(announcement.image, "announcement");
+      changed = true;
+    }
+  }
+
+  return changed;
 }
 
 function migrateState(state) {
@@ -207,7 +284,8 @@ async function register(state, body) {
   return json(200, {
     message: isOwner
       ? "Owner admin account created. You can now log in."
-      : "Account created. An admin needs to approve it before you can log in."
+      : "Account created. An admin needs to approve it before you can log in.",
+    data: publicData(state)
   });
 }
 
@@ -256,6 +334,8 @@ async function resetPassword(state, body) {
 
 async function updateProfile(state, sessionUser, body) {
   const user = state.users.find((item) => item.id === sessionUser.id);
+  const photo = await saveImage(body.photo, "profile");
+
   Object.assign(user, {
     name: String(body.name || "").trim(),
     phone: String(body.phone || "").trim(),
@@ -263,7 +343,7 @@ async function updateProfile(state, sessionUser, body) {
     email: String(body.email || "").trim().toLowerCase(),
     ukara: String(body.ukara || "").trim()
   });
-  if (body.photo) user.photo = body.photo;
+  if (photo) user.photo = photo;
 
   await saveState(state);
   return json(200, { user: safeUser(user), data: publicData(state) });
@@ -272,13 +352,14 @@ async function updateProfile(state, sessionUser, body) {
 async function saveRif(state, sessionUser, body) {
   const user = state.users.find((item) => item.id === sessionUser.id);
   const existing = user.rifs.find((rif) => rif.id === body.id);
+  const photo = await saveImage(body.photo, "rif");
   const rif = {
     id: body.id || makeId("rif"),
     make: String(body.make || "").trim(),
     model: String(body.model || "").trim(),
     type: String(body.type || "").trim(),
     serial: String(body.serial || "").trim(),
-    photo: body.photo || existing?.photo || ""
+    photo: photo || existing?.photo || ""
   };
 
   if (existing) Object.assign(existing, rif);
@@ -367,10 +448,11 @@ async function deleteEvent(state, body) {
 
 async function saveAnnouncement(state, body) {
   const existing = state.announcements.find((announcement) => announcement.id === body.id);
+  const image = await saveImage(body.image, "announcement");
   const announcement = {
     id: body.id || makeId("announcement"),
     text: String(body.text || "").trim(),
-    image: body.image || existing?.image || "",
+    image: image || existing?.image || "",
     createdAt: existing?.createdAt || new Date().toISOString(),
     cheers: existing?.cheers || []
   };
