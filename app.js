@@ -1,0 +1,1246 @@
+const STORAGE_KEY = "apocalypse249PlayerApp";
+const PLAYER_PREFIX = "APOC-PLAYER";
+const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
+const SESSION_KEY = "apocalypse249SessionToken";
+
+const defaultState = {
+  currentUserId: null,
+  users: [
+    {
+      id: "admin-1",
+      role: "admin",
+      approved: true,
+      playerNumber: "",
+      password: "admin123",
+      name: "Site Admin",
+      phone: "",
+      address: "",
+      email: "admin@apocalypse249.co.uk",
+      ukara: "",
+      ukaraExpiry: "",
+      photo: "",
+      rifs: []
+    },
+    {
+      id: "player-1",
+      role: "player",
+      approved: true,
+      playerNumber: "APOC-PLAYER0001",
+      password: "player123",
+      name: "Demo Player",
+      phone: "07123 456789",
+      address: "Apocalypse 249 Safe Zone",
+      email: "player@example.com",
+      ukara: "UKARA-249",
+      ukaraExpiry: "2026-12-31",
+      photo: "",
+      rifs: [
+        {
+          id: "rif-1",
+          make: "Specna Arms",
+          model: "SA-E12",
+          type: "AEG",
+          serial: "SA249-DEMO",
+          photo: ""
+        }
+      ]
+    }
+  ],
+  events: [
+    {
+      id: "event-1",
+      title: "Open Skirmish Day",
+      date: "2026-06-07",
+      notes: "Standard walk-on day. Booking required."
+    },
+    {
+      id: "event-2",
+      title: "MilSim Lite",
+      date: "2026-06-21",
+      notes: "Team objectives, medic rules and limited ammo."
+    }
+  ],
+  announcements: [
+    {
+      id: "announcement-1",
+      text: "Welcome to the Apocalypse 249 player app. Keep an eye here for site updates, game day news and kit reminders.",
+      image: "",
+      createdAt: "2026-05-18T12:00:00.000Z",
+      cheers: []
+    }
+  ]
+};
+
+let state = loadState();
+let calendarMonth = getInitialCalendarMonth();
+saveState();
+let apiOnline = false;
+let sessionToken = localStorage.getItem(SESSION_KEY) || "";
+let apiDiagnostic = "";
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+function loadState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return migrateState(structuredClone(defaultState));
+
+  try {
+    return migrateState(JSON.parse(saved));
+  } catch {
+    return migrateState(structuredClone(defaultState));
+  }
+}
+
+function migrateState(loadedState) {
+  loadedState.users ??= [];
+  loadedState.events ??= [];
+  loadedState.announcements ??= [];
+
+  loadedState.users.forEach((user) => {
+    user.rifs ??= [];
+    user.playerNumber ??= "";
+    user.approved ??= true;
+
+    if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
+      user.role = "admin";
+      user.approved = true;
+    }
+  });
+
+  loadedState.announcements.forEach((announcement) => {
+    announcement.cheers ??= [];
+    announcement.createdAt ??= new Date().toISOString();
+  });
+
+  assignMissingPlayerNumbers(loadedState);
+  return loadedState;
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+async function apiRequest(action, body = {}) {
+  let result = await fetchJson(apiUrl(action), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(sessionToken ? { authorization: `Bearer ${sessionToken}` } : {})
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!result.ok && apiOnline !== "direct") {
+    const directResult = await fetchJson(`/.netlify/functions/api/${action}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(sessionToken ? { authorization: `Bearer ${sessionToken}` } : {})
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (directResult.ok) {
+      apiOnline = "direct";
+      renderBackendStatus();
+    }
+
+    result = directResult;
+  }
+
+  if (!result.ok) throw new Error(result.data?.error || result.error || "Something went wrong.");
+  return result.data;
+}
+
+function apiUrl(action) {
+  return apiOnline === "direct" ? `/.netlify/functions/api/${action}` : `/api/${action}`;
+}
+
+async function fetchJson(url, options = {}) {
+  try {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!contentType.includes("application/json")) {
+      return {
+        ok: false,
+        status: response.status,
+        error: `${url} returned ${response.status} but did not return JSON.`
+      };
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data: JSON.parse(text)
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      error: `${url} could not be reached.`
+    };
+  }
+}
+
+function applyServerData(result) {
+  if (result.token) {
+    sessionToken = result.token;
+    localStorage.setItem(SESSION_KEY, sessionToken);
+  }
+
+  if (result.data) {
+    state.users = result.data.users || [];
+    state.events = result.data.events || [];
+    state.announcements = result.data.announcements || [];
+  }
+
+  if (result.user) {
+    state.currentUserId = result.user.id;
+    const existing = state.users.find((user) => user.id === result.user.id);
+    if (existing) Object.assign(existing, result.user);
+    else state.users.push(result.user);
+  }
+
+  saveState();
+}
+
+async function bootstrap() {
+  apiOnline = await detectApiMode();
+
+  renderBackendStatus();
+
+  if (apiOnline && sessionToken) {
+    try {
+      const result = await apiRequest("auth/me");
+      applyServerData(result);
+    } catch {
+      sessionToken = "";
+      localStorage.removeItem(SESSION_KEY);
+      state.currentUserId = null;
+      saveState();
+    }
+  }
+
+  render();
+}
+
+async function detectApiMode() {
+  let functionHealthWorks = false;
+
+  const apiHealth = await fetchJson("/api/health", { cache: "no-store" });
+  if (apiHealth.ok && apiHealth.data?.ok === true) return true;
+  apiDiagnostic = apiHealth.error || `/api/health returned ${apiHealth.status}.`;
+
+  const directApiHealth = await fetchJson("/.netlify/functions/api/health", { cache: "no-store" });
+  if (directApiHealth.ok && directApiHealth.data?.ok === true) return "direct";
+  apiDiagnostic += ` ${directApiHealth.error || `Direct function URL returned ${directApiHealth.status}.`}`;
+
+  try {
+    const health = await fetchJson("/.netlify/functions/health", { cache: "no-store" });
+    functionHealthWorks = health.ok && health.data?.ok === true;
+  } catch {
+    functionHealthWorks = false;
+  }
+
+  if (functionHealthWorks) {
+    apiDiagnostic += " Basic Netlify Functions are working, but the shared database api function is not.";
+  } else {
+    apiDiagnostic += " Basic Netlify Functions are not reachable either.";
+  }
+
+  return false;
+}
+
+function renderBackendStatus() {
+  const status = $("#backendStatus");
+  if (!status) return;
+
+  status.classList.toggle("is-live", apiOnline);
+  status.classList.toggle("is-local", !apiOnline);
+  status.textContent = apiOnline
+    ? "Shared live mode: accounts work across devices."
+    : "Local demo mode: accounts only work on this browser.";
+
+  const detail = $("#backendDetail");
+  if (!detail) return;
+
+  if (apiOnline) {
+    detail.textContent = "Backend connected.";
+  } else if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+    detail.textContent = "This is expected on the local preview. Check your live Netlify URL for shared mode.";
+  } else {
+    detail.textContent = `${apiDiagnostic} Check that Netlify deployed the api function.`;
+  }
+}
+
+function makeId(prefix) {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
+
+function assignMissingPlayerNumbers(appState = state) {
+  appState.users
+    .filter((user) => user.role === "player" && !user.playerNumber)
+    .forEach((user) => {
+      user.playerNumber = nextPlayerNumber(appState);
+    });
+}
+
+function nextPlayerNumber(appState = state) {
+  const highestNumber = appState.users.reduce((highest, user) => {
+    const match = user.playerNumber?.match(/^APOC-PLAYER(\d+)$/);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+
+  return `${PLAYER_PREFIX}${String(highestNumber + 1).padStart(4, "0")}`;
+}
+
+function getInitialCalendarMonth() {
+  const firstEvent = [...state.events].sort((a, b) => a.date.localeCompare(b.date))[0];
+  const baseDate = firstEvent?.date ? new Date(`${firstEvent.date}T12:00:00`) : new Date();
+  return new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+}
+
+function currentUser() {
+  return state.users.find((user) => user.id === state.currentUserId) || null;
+}
+
+function readImage(fileInput) {
+  const file = fileInput.files?.[0];
+  if (!file) return Promise.resolve("");
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) return "Not set";
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(`${dateValue}T12:00:00`));
+}
+
+function setView(viewName) {
+  $$(".view").forEach((view) => view.classList.add("hidden"));
+  $(`#${viewName}View`)?.classList.remove("hidden");
+
+  $$(".tab").forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.view === viewName);
+  });
+
+  if (viewName === "admin") {
+    renderAdmin();
+  }
+
+  if (viewName === "calendar") {
+    renderCalendar();
+  }
+
+  if (viewName === "announcements") {
+    renderAnnouncements();
+  }
+}
+
+function render() {
+  const user = currentUser();
+  $("#authPanel").classList.toggle("hidden", Boolean(user));
+  $("#dashboard").classList.toggle("hidden", !user);
+
+  if (!user) {
+    $("#sessionBar").innerHTML = "";
+    return;
+  }
+
+  $("#sessionBar").innerHTML = `
+    <span>Signed in as <strong>${escapeHtml(user.name)}</strong></span>
+    <button class="small-button" type="button" id="logoutButton">Log out</button>
+  `;
+  $("#logoutButton").addEventListener("click", async () => {
+    if (apiOnline && sessionToken) {
+      try {
+        await apiRequest("auth/logout");
+      } catch {
+        // The local session still clears even if the remote logout call fails.
+      }
+    }
+    sessionToken = "";
+    localStorage.removeItem(SESSION_KEY);
+    state.currentUserId = null;
+    saveState();
+    render();
+  });
+
+  $$(".admin-only").forEach((item) => item.classList.toggle("hidden", user.role !== "admin"));
+
+  fillProfileForm(user);
+  renderProfileCard(user);
+  renderRifs(user);
+  renderAnnouncements();
+  renderCalendar();
+  renderAdmin();
+}
+
+function fillProfileForm(user) {
+  $("#profileName").value = user.name || "";
+  $("#profilePhone").value = user.phone || "";
+  $("#profileAddress").value = user.address || "";
+  $("#profileEmail").value = user.email || "";
+  $("#profileUkara").value = user.ukara || "";
+}
+
+function renderProfileCard(user) {
+  $("#profilePreview").innerHTML = user.photo
+    ? `<img src="${user.photo}" alt="${escapeHtml(user.name)}" />`
+    : "Profile photo";
+  $("#cardName").textContent = user.name || "Player name";
+  $("#cardPlayerNumber").textContent = user.playerNumber || "Not assigned";
+  $("#cardUkara").textContent = user.ukara || "Not added";
+  $("#cardUkaraExpiry").textContent = formatDate(user.ukaraExpiry);
+  $("#cardEmail").textContent = user.email || "Not added";
+}
+
+function renderRifs(user) {
+  const list = $("#rifList");
+  list.innerHTML = "";
+
+  if (!user.rifs.length) {
+    list.innerHTML = `<article class="event-card"><h2>No RIFs added yet</h2><p>Add your first one using the form above.</p></article>`;
+    return;
+  }
+
+  user.rifs.forEach((rif) => {
+    const template = $("#rifCardTemplate").content.cloneNode(true);
+    const card = template.querySelector(".rif-card");
+    card.dataset.id = rif.id;
+    template.querySelector(".rif-image").innerHTML = rif.photo
+      ? `<img src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
+      : "RIF photo";
+    template.querySelector("h2").textContent = `${rif.make} ${rif.model}`;
+    template.querySelector("p").textContent = `${rif.type} | Serial: ${rif.serial}`;
+    template.querySelector(".edit-rif").addEventListener("click", () => editRif(rif.id));
+    template.querySelector(".delete-rif").addEventListener("click", () => deleteRif(rif.id));
+    list.appendChild(template);
+  });
+}
+
+function editRif(rifId) {
+  const user = currentUser();
+  const rif = user.rifs.find((item) => item.id === rifId);
+  if (!rif) return;
+
+  $("#rifId").value = rif.id;
+  $("#rifMake").value = rif.make;
+  $("#rifModel").value = rif.model;
+  $("#rifType").value = rif.type;
+  $("#rifSerial").value = rif.serial;
+  $("#rifPhoto").value = "";
+  $("#rifMake").focus();
+}
+
+async function deleteRif(rifId) {
+  const user = currentUser();
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("rifs/delete", { id: rifId });
+      applyServerData(result);
+      renderRifs(currentUser());
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  user.rifs = user.rifs.filter((rif) => rif.id !== rifId);
+  saveState();
+  renderRifs(user);
+}
+
+function renderAnnouncements() {
+  const feed = $("#announcementFeed");
+  if (!feed) return;
+
+  const user = currentUser();
+  const announcements = [...state.announcements].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  if (!announcements.length) {
+    feed.innerHTML = `<article class="announcement-card"><h2>No announcements yet</h2><p>The admin team can add updates from the backend.</p></article>`;
+    return;
+  }
+
+  feed.innerHTML = announcements
+    .map((announcement) => {
+      const hasCheered = announcement.cheers.includes(user.id);
+      return `
+        <article class="announcement-card">
+          ${announcement.image ? `<img src="${announcement.image}" alt="Announcement image" />` : ""}
+          <div class="announcement-body">
+            <p>${escapeHtml(announcement.text)}</p>
+            <div class="announcement-actions">
+              <button class="small-button cheer-button ${hasCheered ? "has-cheered" : ""}" type="button" data-id="${announcement.id}">
+                Thumbs up ${announcement.cheers.length}
+              </button>
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  $$(".cheer-button").forEach((button) => {
+    button.addEventListener("click", () => cheerAnnouncement(button.dataset.id));
+  });
+}
+
+async function cheerAnnouncement(announcementId) {
+  const user = currentUser();
+  const announcement = state.announcements.find((item) => item.id === announcementId);
+  if (!user || !announcement) return;
+
+  if (apiOnline) {
+    const wasCheered = announcement.cheers.includes(user.id);
+    try {
+      const result = await apiRequest("announcements/cheer", { id: announcementId });
+      applyServerData(result);
+      if (!wasCheered) playPewPewSound();
+      renderAnnouncements();
+      renderAdminAnnouncements();
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  if (announcement.cheers.includes(user.id)) {
+    announcement.cheers = announcement.cheers.filter((userId) => userId !== user.id);
+  } else {
+    announcement.cheers.push(user.id);
+    playPewPewSound();
+  }
+
+  saveState();
+  renderAnnouncements();
+  renderAdminAnnouncements();
+}
+
+function playPewPewSound() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  const audioContext = new AudioContext();
+  const now = audioContext.currentTime;
+  const shots = [0, 0.18];
+
+  shots.forEach((offset, index) => {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+    const start = now + offset;
+
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(index === 0 ? 980 : 760, start);
+    oscillator.frequency.exponentialRampToValueAtTime(index === 0 ? 170 : 130, start + 0.14);
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(index === 0 ? 1200 : 950, start);
+    filter.Q.setValueAtTime(8, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+    oscillator.connect(filter).connect(gain).connect(audioContext.destination);
+    oscillator.start(start);
+    oscillator.stop(start + 0.17);
+  });
+
+  shots.forEach((offset) => {
+    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.05, audioContext.sampleRate);
+    const noise = noiseBuffer.getChannelData(0);
+    for (let index = 0; index < noise.length; index += 1) {
+      noise[index] = Math.random() * 2 - 1;
+    }
+    const noiseSource = audioContext.createBufferSource();
+    const noiseGain = audioContext.createGain();
+    noiseSource.buffer = noiseBuffer;
+    noiseGain.gain.setValueAtTime(0.08, now + offset);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.05);
+    noiseSource.connect(noiseGain).connect(audioContext.destination);
+    noiseSource.start(now + offset);
+    noiseSource.stop(now + offset + 0.05);
+  });
+
+  window.setTimeout(() => audioContext.close(), 900);
+}
+
+function renderEvents() {
+  const futureEvents = [...state.events].sort((a, b) => a.date.localeCompare(b.date));
+  const eventHtml = futureEvents.length
+    ? futureEvents
+        .map(
+          (event) => `
+            <article class="event-card" id="event-${event.id}">
+              <h2>${escapeHtml(event.title)}</h2>
+              <p><strong>${formatDate(event.date)}</strong></p>
+              <p>${escapeHtml(event.notes || "No extra notes.")}</p>
+            </article>
+          `
+        )
+        .join("")
+    : `<article class="event-card"><h2>No events listed</h2><p>The admin team can add upcoming events.</p></article>`;
+
+  $("#eventList").innerHTML = eventHtml;
+}
+
+function renderCalendar() {
+  renderMiniCalendar();
+  renderEvents();
+}
+
+function renderMiniCalendar() {
+  const grid = $("#calendarGrid");
+  if (!grid) return;
+
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const monthEvents = state.events.filter((event) => {
+    const eventDate = new Date(`${event.date}T12:00:00`);
+    return eventDate.getFullYear() === year && eventDate.getMonth() === month;
+  });
+  const eventsByDay = monthEvents.reduce((days, event) => {
+    const day = Number(event.date.slice(-2));
+    days[day] ??= [];
+    days[day].push(event);
+    return days;
+  }, {});
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const mondayOffset = (firstDay.getDay() + 6) % 7;
+
+  $("#calendarMonthLabel").textContent = new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric"
+  }).format(calendarMonth);
+
+  grid.innerHTML = "";
+
+  for (let index = 0; index < mondayOffset; index += 1) {
+    grid.insertAdjacentHTML("beforeend", `<div class="calendar-day empty"></div>`);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dayEvents = eventsByDay[day] || [];
+    const eventTarget = dayEvents[0]?.id || "";
+    const eventDots = dayEvents.map(() => `<span></span>`).join("");
+    grid.insertAdjacentHTML(
+      "beforeend",
+      `
+        <button class="calendar-day ${dayEvents.length ? "has-event" : ""}" type="button" data-event-id="${eventTarget}" ${dayEvents.length ? "" : "disabled"}>
+          <span class="day-number">${day}</span>
+          <span class="event-dots">${eventDots}</span>
+        </button>
+      `
+    );
+  }
+
+  $$(".calendar-day.has-event").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = $(`#event-${button.dataset.eventId}`);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      target?.classList.add("is-highlighted");
+      window.setTimeout(() => target?.classList.remove("is-highlighted"), 1300);
+    });
+  });
+}
+
+function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
+  const user = currentUser();
+  if (!user || user.role !== "admin") return;
+
+  $("#adminUsers").innerHTML = state.users
+    .map(
+      (player) => `
+        <article class="user-row">
+          <div>
+            <h3>${escapeHtml(player.name)}</h3>
+            <p>${escapeHtml(player.email)} | ${escapeHtml(player.role)} | ${player.approved ? "Approved" : "Pending approval"} | Player No: ${escapeHtml(player.playerNumber || "Not assigned")} | UKARA: ${escapeHtml(player.ukara || "Not set")} | Expires: ${formatDate(player.ukaraExpiry)}</p>
+          </div>
+          <div class="card-actions">
+            <button class="small-button select-user" type="button" data-id="${player.id}">Edit</button>
+            ${
+              player.role === "player" && !player.approved
+                ? `<button class="small-button approve-user" type="button" data-id="${player.id}">Approve</button>`
+                : ""
+            }
+            ${
+              player.id === user.id
+                ? ""
+                : `<button class="small-button danger delete-user" type="button" data-id="${player.id}">Delete</button>`
+            }
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  $$(".select-user").forEach((button) => {
+    button.addEventListener("click", () => fillAdminUser(button.dataset.id));
+  });
+  $$(".delete-user").forEach((button) => {
+    button.addEventListener("click", () => deleteUser(button.dataset.id));
+  });
+  $$(".approve-user").forEach((button) => {
+    button.addEventListener("click", () => approveUser(button.dataset.id));
+  });
+
+  const selectedUser = state.users.find((item) => item.id === selectedUserId) || state.users[0];
+  fillAdminUser(selectedUser.id);
+
+  $("#adminEvents").innerHTML = state.events
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(
+      (event) => `
+        <article class="user-row">
+          <div>
+            <h3>${escapeHtml(event.title)}</h3>
+            <p>${formatDate(event.date)} | ${escapeHtml(event.notes || "No notes")}</p>
+          </div>
+          <div class="card-actions">
+            <button class="small-button edit-event" type="button" data-id="${event.id}">Edit</button>
+            <button class="small-button danger delete-event" type="button" data-id="${event.id}">Delete</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  $$(".edit-event").forEach((button) => button.addEventListener("click", () => fillEvent(button.dataset.id)));
+  $$(".delete-event").forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.id)));
+  renderAdminAnnouncements();
+}
+
+function renderAdminAnnouncements() {
+  const list = $("#adminAnnouncements");
+  if (!list) return;
+
+  if (!state.announcements.length) {
+    list.innerHTML = `<article class="user-row"><div><h3>No announcements</h3><p>Add the first post using the form above.</p></div></article>`;
+    return;
+  }
+
+  list.innerHTML = [...state.announcements]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(
+      (announcement) => `
+        <article class="user-row">
+          <div>
+            <h3>${escapeHtml(announcement.text.slice(0, 58))}${announcement.text.length > 58 ? "..." : ""}</h3>
+            <p>${announcement.cheers.length} thumbs up</p>
+          </div>
+          <div class="card-actions">
+            <button class="small-button edit-announcement" type="button" data-id="${announcement.id}">Edit</button>
+            <button class="small-button danger delete-announcement" type="button" data-id="${announcement.id}">Delete</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  $$(".edit-announcement").forEach((button) =>
+    button.addEventListener("click", () => fillAnnouncement(button.dataset.id))
+  );
+  $$(".delete-announcement").forEach((button) =>
+    button.addEventListener("click", () => deleteAnnouncement(button.dataset.id))
+  );
+}
+
+function fillAnnouncement(announcementId) {
+  const announcement = state.announcements.find((item) => item.id === announcementId);
+  if (!announcement) return;
+
+  $("#announcementId").value = announcement.id;
+  $("#announcementText").value = announcement.text;
+  $("#announcementImage").value = "";
+  $("#announcementText").focus();
+}
+
+async function deleteAnnouncement(announcementId) {
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/announcements/delete", { id: announcementId });
+      applyServerData(result);
+      renderAnnouncements();
+      renderAdminAnnouncements();
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  state.announcements = state.announcements.filter((announcement) => announcement.id !== announcementId);
+  saveState();
+  renderAnnouncements();
+  renderAdminAnnouncements();
+}
+
+function fillAdminUser(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  $("#adminUserId").value = user.id;
+  $("#adminName").value = user.name || "";
+  $("#adminPhone").value = user.phone || "";
+  $("#adminEmail").value = user.email || "";
+  $("#adminUkara").value = user.ukara || "";
+  $("#adminUkaraExpiry").value = user.ukaraExpiry || "";
+  $("#adminRole").value = user.role || "player";
+}
+
+async function deleteUser(userId) {
+  const signedInUser = currentUser();
+  const user = state.users.find((item) => item.id === userId);
+  if (!user || user.id === signedInUser?.id) return;
+
+  const shouldDelete = window.confirm(`Delete ${user.name}? This removes their player profile and RIF list from this app.`);
+  if (!shouldDelete) return;
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/users/delete", { id: userId });
+      applyServerData(result);
+      renderAdmin();
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  state.users = state.users.filter((item) => item.id !== userId);
+
+  if ($("#adminUserId").value === userId) {
+    $("#adminUserId").value = "";
+  }
+
+  saveState();
+  renderAdmin();
+}
+
+async function approveUser(userId) {
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/users/approve", { id: userId });
+      applyServerData(result);
+      renderAdmin(userId);
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  user.approved = true;
+  saveState();
+  renderAdmin(user.id);
+}
+
+function fillEvent(eventId) {
+  const event = state.events.find((item) => item.id === eventId);
+  if (!event) return;
+
+  $("#eventId").value = event.id;
+  $("#eventTitle").value = event.title;
+  $("#eventDate").value = event.date;
+  $("#eventNotes").value = event.notes || "";
+  $("#eventTitle").focus();
+}
+
+async function deleteEvent(eventId) {
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/events/delete", { id: eventId });
+      applyServerData(result);
+      renderEvents();
+      renderMiniCalendar();
+      renderAdmin();
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  state.events = state.events.filter((event) => event.id !== eventId);
+  saveState();
+  renderEvents();
+  renderAdmin();
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const map = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    };
+    return map[character];
+  });
+}
+
+$("#loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = $("#loginEmail").value.trim().toLowerCase();
+  const password = $("#loginPassword").value;
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("auth/login", { email, password });
+      applyServerData(result);
+      $("#loginForm").reset();
+      setView("profile");
+      render();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  const user = state.users.find((item) => item.email.toLowerCase() === email && item.password === password);
+
+  if (!user) {
+    alert("Login details not recognised.");
+    return;
+  }
+
+  if (user.role !== "admin" && !user.approved) {
+    alert("Your account is waiting for admin approval.");
+    return;
+  }
+
+  state.currentUserId = user.id;
+  saveState();
+  $("#loginForm").reset();
+  setView("profile");
+  render();
+});
+
+$("#showResetForm").addEventListener("click", () => {
+  $("#resetPasswordForm").classList.remove("hidden");
+  $("#resetEmail").focus();
+});
+
+$("#hideResetForm").addEventListener("click", () => {
+  $("#resetPasswordForm").classList.add("hidden");
+  $("#resetPasswordForm").reset();
+});
+
+$("#resetPasswordForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = $("#resetEmail").value.trim().toLowerCase();
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("auth/reset-password", {
+        email,
+        password: $("#resetPassword").value
+      });
+      $("#resetPasswordForm").reset();
+      $("#resetPasswordForm").classList.add("hidden");
+      alert(result.message || "Password updated. You can now log in.");
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  const user = state.users.find((item) => item.email.toLowerCase() === email);
+
+  if (!user) {
+    alert("No account found for that email.");
+    return;
+  }
+
+  user.password = $("#resetPassword").value;
+
+  if (email === OWNER_ADMIN_EMAIL) {
+    user.role = "admin";
+    user.approved = true;
+  }
+
+  saveState();
+  $("#resetPasswordForm").reset();
+  $("#resetPasswordForm").classList.add("hidden");
+  alert("Password updated. You can now log in.");
+});
+
+$("#registerForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = $("#registerEmail").value.trim().toLowerCase();
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("auth/register", {
+        name: $("#registerName").value.trim(),
+        email,
+        password: $("#registerPassword").value
+      });
+      $("#registerForm").reset();
+      alert(result.message || "Account created.");
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (state.users.some((user) => user.email.toLowerCase() === email)) {
+    alert("That email already has an account.");
+    return;
+  }
+
+  const user = {
+    id: makeId("user"),
+    role: "player",
+    approved: false,
+    playerNumber: nextPlayerNumber(),
+    password: $("#registerPassword").value,
+    name: $("#registerName").value.trim(),
+    phone: "",
+    address: "",
+    email,
+    ukara: "",
+    ukaraExpiry: "",
+    photo: "",
+    rifs: []
+  };
+
+  state.users.push(user);
+  saveState();
+  $("#registerForm").reset();
+  alert("Account created. An admin needs to approve it before you can log in.");
+  render();
+});
+
+$("#profileForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const user = currentUser();
+  const photo = await readImage($("#profilePhoto"));
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("profile/update", {
+        name: $("#profileName").value.trim(),
+        phone: $("#profilePhone").value.trim(),
+        address: $("#profileAddress").value.trim(),
+        email: $("#profileEmail").value.trim(),
+        ukara: $("#profileUkara").value.trim(),
+        photo
+      });
+      applyServerData(result);
+      $("#profilePhoto").value = "";
+      render();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  user.name = $("#profileName").value.trim();
+  user.phone = $("#profilePhone").value.trim();
+  user.address = $("#profileAddress").value.trim();
+  user.email = $("#profileEmail").value.trim();
+  user.ukara = $("#profileUkara").value.trim();
+  if (photo) user.photo = photo;
+
+  saveState();
+  $("#profilePhoto").value = "";
+  render();
+});
+
+$("#rifForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const user = currentUser();
+  const photo = await readImage($("#rifPhoto"));
+  const rifId = $("#rifId").value;
+  const existingRif = user.rifs.find((rif) => rif.id === rifId);
+  const rifData = {
+    id: rifId || makeId("rif"),
+    make: $("#rifMake").value.trim(),
+    model: $("#rifModel").value.trim(),
+    type: $("#rifType").value,
+    serial: $("#rifSerial").value.trim(),
+    photo: photo || existingRif?.photo || ""
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("rifs/save", rifData);
+      applyServerData(result);
+      $("#rifForm").reset();
+      $("#rifId").value = "";
+      renderRifs(currentUser());
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (existingRif) {
+    Object.assign(existingRif, rifData);
+  } else {
+    user.rifs.push(rifData);
+  }
+
+  saveState();
+  $("#rifForm").reset();
+  $("#rifId").value = "";
+  renderRifs(user);
+});
+
+$("#adminUserForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const user = state.users.find((item) => item.id === $("#adminUserId").value);
+  if (!user) return;
+
+  const userData = {
+    id: $("#adminUserId").value,
+    name: $("#adminName").value.trim(),
+    phone: $("#adminPhone").value.trim(),
+    email: $("#adminEmail").value.trim(),
+    ukara: $("#adminUkara").value.trim(),
+    ukaraExpiry: $("#adminUkaraExpiry").value,
+    role: $("#adminRole").value
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/users/update", userData);
+      applyServerData(result);
+      render();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  user.name = $("#adminName").value.trim();
+  user.phone = $("#adminPhone").value.trim();
+  user.email = $("#adminEmail").value.trim();
+  user.ukara = $("#adminUkara").value.trim();
+  user.ukaraExpiry = $("#adminUkaraExpiry").value;
+  user.role = $("#adminRole").value;
+
+  saveState();
+  render();
+});
+
+$("#eventForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const eventId = $("#eventId").value;
+  const existingEvent = state.events.find((item) => item.id === eventId);
+  const eventData = {
+    id: eventId || makeId("event"),
+    title: $("#eventTitle").value.trim(),
+    date: $("#eventDate").value,
+    notes: $("#eventNotes").value.trim()
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/events/save", eventData);
+      applyServerData(result);
+      $("#eventForm").reset();
+      $("#eventId").value = "";
+      renderEvents();
+      renderMiniCalendar();
+      renderAdmin();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (existingEvent) {
+    Object.assign(existingEvent, eventData);
+  } else {
+    state.events.push(eventData);
+  }
+
+  saveState();
+  $("#eventForm").reset();
+  $("#eventId").value = "";
+  renderEvents();
+  renderMiniCalendar();
+  renderAdmin();
+});
+
+$("#announcementForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const announcementId = $("#announcementId").value;
+  const existingAnnouncement = state.announcements.find((item) => item.id === announcementId);
+  const image = await readImage($("#announcementImage"));
+  const announcementData = {
+    id: announcementId || makeId("announcement"),
+    text: $("#announcementText").value.trim(),
+    image: image || existingAnnouncement?.image || "",
+    createdAt: existingAnnouncement?.createdAt || new Date().toISOString(),
+    cheers: existingAnnouncement?.cheers || []
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/announcements/save", announcementData);
+      applyServerData(result);
+      $("#announcementForm").reset();
+      $("#announcementId").value = "";
+      renderAnnouncements();
+      renderAdminAnnouncements();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (existingAnnouncement) {
+    Object.assign(existingAnnouncement, announcementData);
+  } else {
+    state.announcements.push(announcementData);
+  }
+
+  saveState();
+  $("#announcementForm").reset();
+  $("#announcementId").value = "";
+  renderAnnouncements();
+  renderAdminAnnouncements();
+});
+
+$("#prevMonth").addEventListener("click", () => {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+  renderMiniCalendar();
+});
+
+$("#nextMonth").addEventListener("click", () => {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+  renderMiniCalendar();
+});
+
+$$("[data-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!currentUser() && button.dataset.view !== "profile") return;
+    setView(button.dataset.view);
+  });
+});
+
+bootstrap();

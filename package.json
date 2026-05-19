@@ -1,0 +1,8 @@
+{
+  "name": "apocalypse-249-player-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  }
+}

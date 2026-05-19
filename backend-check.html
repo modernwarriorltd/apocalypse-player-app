@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backend Check</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="auth-card">
+        <h1>Backend check</h1>
+        <p>Open this page on your real Netlify domain, not the placeholder text.</p>
+        <p id="result">Checking Netlify Functions...</p>
+        <a class="primary-action link-action" href="/">Back to app</a>
+      </section>
+    </main>
+    <script>
+      const result = document.getElementById("result");
+      async function test(url) {
+        try {
+          const response = await fetch(url, { cache: "no-store" });
+          const text = await response.text();
+          return `${url}: ${response.status} ${text}`;
+        } catch (error) {
+          return `${url}: failed - ${error.message}`;
+        }
+      }
+
+      Promise.all([test("/api/health"), test("/.netlify/functions/api/health"), test("/.netlify/functions/health")]).then((lines) => {
+        result.innerHTML = lines.map((line) => `<code>${line}</code>`).join("<br><br>");
+      });
+    </script>
+  </body>
+</html>
