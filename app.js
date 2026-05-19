@@ -393,6 +393,7 @@ function addRepeatInterval(date, repeats) {
 
   if (repeats === "daily") next.setDate(next.getDate() + 1);
   if (repeats === "weekly") next.setDate(next.getDate() + 7);
+  if (repeats === "biweekly") next.setDate(next.getDate() + 14);
   if (repeats === "monthly") next.setMonth(next.getMonth() + 1);
   if (repeats === "yearly") next.setFullYear(next.getFullYear() + 1);
 
@@ -438,8 +439,9 @@ function expandedEvents(startDate, endDate) {
 
 function repeatLabel(event) {
   if (!event.repeats || event.repeats === "none") return "";
+  const label = event.repeats === "biweekly" ? "bi-weekly" : event.repeats;
   const until = event.repeatUntil ? ` until ${formatDate(event.repeatUntil)}` : "";
-  return `Repeats ${event.repeats}${until}`;
+  return `Repeats ${label}${until}`;
 }
 
 function setView(viewName) {
