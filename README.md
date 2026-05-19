@@ -29,6 +29,8 @@ After it is live, create the first admin by registering with `chrisyoungairsoft@
 
 When deployed to Netlify with the included function, users, approvals, RIFs, events, announcements and thumbs up reactions are shared across devices.
 
+Uploaded profile, RIF and announcement images are stored separately in a Netlify Blobs image store. The main app data stores only image URLs, which keeps updates faster and avoids browser storage quota problems.
+
 When opened locally without Netlify Functions, the app still falls back to browser storage for testing.
 
 Password reset is still a simple prototype reset. A production version should use email verification before changing passwords.

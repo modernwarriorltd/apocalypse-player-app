@@ -322,15 +322,44 @@ function currentUser() {
   return state.users.find((user) => user.id === state.currentUserId) || null;
 }
 
-function readImage(fileInput) {
+async function readImage(fileInput, options = {}) {
   const file = fileInput.files?.[0];
-  if (!file) return Promise.resolve("");
+  if (!file) return "";
 
+  const {
+    maxSize = 900,
+    quality = 0.72
+  } = options;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please choose an image file.");
+    return "";
+  }
+
+  const image = await loadImage(file);
+  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function loadImage(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Image could not be loaded."));
+    };
+    image.src = objectUrl;
   });
 }
 
@@ -1086,8 +1115,11 @@ $("#registerForm").addEventListener("submit", async (event) => {
 
 $("#profileForm").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitButton = event.submitter;
+  submitButton.disabled = true;
+  submitButton.textContent = "Saving...";
   const user = currentUser();
-  const photo = await readImage($("#profilePhoto"));
+  const photo = await readImage($("#profilePhoto"), { maxSize: 720, quality: 0.72 });
 
   if (apiOnline) {
     try {
@@ -1104,6 +1136,9 @@ $("#profileForm").addEventListener("submit", async (event) => {
       render();
     } catch (error) {
       alert(error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Save ID";
     }
     return;
   }
@@ -1118,12 +1153,17 @@ $("#profileForm").addEventListener("submit", async (event) => {
   saveState();
   $("#profilePhoto").value = "";
   render();
+  submitButton.disabled = false;
+  submitButton.textContent = "Save ID";
 });
 
 $("#rifForm").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitButton = event.submitter;
+  submitButton.disabled = true;
+  submitButton.textContent = "Saving...";
   const user = currentUser();
-  const photo = await readImage($("#rifPhoto"));
+  const photo = await readImage($("#rifPhoto"), { maxSize: 900, quality: 0.7 });
   const rifId = $("#rifId").value;
   const existingRif = user.rifs.find((rif) => rif.id === rifId);
   const rifData = {
@@ -1144,6 +1184,9 @@ $("#rifForm").addEventListener("submit", async (event) => {
       renderRifs(currentUser());
     } catch (error) {
       alert(error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Save RIF";
     }
     return;
   }
@@ -1158,6 +1201,8 @@ $("#rifForm").addEventListener("submit", async (event) => {
   $("#rifForm").reset();
   $("#rifId").value = "";
   renderRifs(user);
+  submitButton.disabled = false;
+  submitButton.textContent = "Save RIF";
 });
 
 $("#adminUserForm").addEventListener("submit", async (event) => {
@@ -1241,7 +1286,7 @@ $("#announcementForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const announcementId = $("#announcementId").value;
   const existingAnnouncement = state.announcements.find((item) => item.id === announcementId);
-  const image = await readImage($("#announcementImage"));
+  const image = await readImage($("#announcementImage"), { maxSize: 1100, quality: 0.72 });
   const announcementData = {
     id: announcementId || makeId("announcement"),
     text: $("#announcementText").value.trim(),
