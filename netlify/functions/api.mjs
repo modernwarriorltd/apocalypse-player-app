@@ -23,13 +23,19 @@ const defaultState = () => ({
       id: "event-1",
       title: "Open Skirmish Day",
       date: "2026-06-07",
-      notes: "Standard walk-on day. Booking required."
+      notes: "Standard walk-on day. Booking required.",
+      repeats: "none",
+      repeatUntil: "",
+      bookingUrl: "https://apocalypse249.co.uk/v2/"
     },
     {
       id: "event-2",
       title: "MilSim Lite",
       date: "2026-06-21",
-      notes: "Team objectives, medic rules and limited ammo."
+      notes: "Team objectives, medic rules and limited ammo.",
+      repeats: "none",
+      repeatUntil: "",
+      bookingUrl: "https://apocalypse249.co.uk/v2/"
     }
   ],
   announcements: [
@@ -41,7 +47,8 @@ const defaultState = () => ({
       cheers: []
     }
   ],
-  sessions: {}
+  sessions: {},
+  contactMessages: []
 });
 
 export default async (request) => {
@@ -73,6 +80,7 @@ export default async (request) => {
     if (action === "rifs/save") return saveRif(state, user, body);
     if (action === "rifs/delete") return deleteRif(state, user, body);
     if (action === "announcements/cheer") return cheerAnnouncement(state, user, body);
+    if (action === "contact/submit") return submitContactMessage(state, user, body);
 
     if (user.role !== "admin") return json(403, { error: "Admin access required." });
 
@@ -83,6 +91,8 @@ export default async (request) => {
     if (action === "admin/events/delete") return deleteEvent(state, body);
     if (action === "admin/announcements/save") return saveAnnouncement(state, body);
     if (action === "admin/announcements/delete") return deleteAnnouncement(state, body);
+    if (action === "admin/contact/mark-replied") return markContactReplied(state, body);
+    if (action === "admin/contact/delete") return deleteContactMessage(state, body);
 
     return json(404, { error: "Not found." });
   } catch (error) {
@@ -180,6 +190,7 @@ function migrateState(state) {
   state.events ??= [];
   state.announcements ??= [];
   state.sessions ??= {};
+  state.contactMessages ??= [];
 
   state.users.forEach((user) => {
     user.rifs ??= [];
@@ -242,7 +253,8 @@ function publicData(state) {
   return {
     users: state.users.map(safeUser),
     events: state.events,
-    announcements: state.announcements
+    announcements: state.announcements,
+    contactMessages: state.contactMessages || []
   };
 }
 
@@ -390,6 +402,30 @@ async function cheerAnnouncement(state, user, body) {
   return json(200, { data: publicData(state) });
 }
 
+async function submitContactMessage(state, user, body) {
+  const message = {
+    id: makeId("contact"),
+    playerId: user.id,
+    playerName: user.name,
+    name: String(body.name || "").trim(),
+    subject: String(body.subject || "").trim(),
+    phone: String(body.phone || "").trim(),
+    email: String(body.email || "").trim().toLowerCase(),
+    question: String(body.question || "").trim(),
+    createdAt: new Date().toISOString(),
+    replied: false
+  };
+
+  if (!message.name || !message.subject || !message.email || !message.question) {
+    return json(400, { error: "Name, subject, email and question are required." });
+  }
+
+  state.contactMessages ??= [];
+  state.contactMessages.push(message);
+  await saveState(state);
+  return json(200, { message: "Question sent to the admin team.", data: publicData(state) });
+}
+
 async function updateUser(state, body) {
   const user = state.users.find((item) => item.id === body.id);
   if (!user) return json(404, { error: "User not found." });
@@ -432,7 +468,10 @@ async function saveEvent(state, body) {
     id: body.id || makeId("event"),
     title: String(body.title || "").trim(),
     date: body.date || "",
-    notes: String(body.notes || "").trim()
+    notes: String(body.notes || "").trim(),
+    repeats: body.repeats || "none",
+    repeatUntil: body.repeatUntil || "",
+    bookingUrl: body.bookingUrl || "https://apocalypse249.co.uk/v2/"
   };
   if (existing) Object.assign(existing, event);
   else state.events.push(event);
@@ -464,6 +503,20 @@ async function saveAnnouncement(state, body) {
 
 async function deleteAnnouncement(state, body) {
   state.announcements = state.announcements.filter((announcement) => announcement.id !== body.id);
+  await saveState(state);
+  return json(200, { data: publicData(state) });
+}
+
+async function markContactReplied(state, body) {
+  const message = state.contactMessages.find((item) => item.id === body.id);
+  if (!message) return json(404, { error: "Message not found." });
+  message.replied = true;
+  await saveState(state);
+  return json(200, { data: publicData(state) });
+}
+
+async function deleteContactMessage(state, body) {
+  state.contactMessages = state.contactMessages.filter((message) => message.id !== body.id);
   await saveState(state);
   return json(200, { data: publicData(state) });
 }
