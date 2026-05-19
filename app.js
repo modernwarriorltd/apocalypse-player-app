@@ -73,7 +73,6 @@ const defaultState = {
 
 let state = loadState();
 let calendarMonth = getInitialCalendarMonth();
-saveState();
 let apiOnline = false;
 let sessionToken = localStorage.getItem(SESSION_KEY) || "";
 let apiDiagnostic = "";
@@ -119,7 +118,17 @@ function migrateState(loadedState) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (apiOnline) {
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    localStorage.removeItem(STORAGE_KEY);
+    alert("Local browser storage was full, so the local demo cache has been cleared.");
+  }
 }
 
 async function apiRequest(action, body = {}) {
@@ -189,6 +198,7 @@ async function fetchJson(url, options = {}) {
 function applyServerData(result) {
   if (result.token) {
     sessionToken = result.token;
+    localStorage.removeItem(STORAGE_KEY);
     localStorage.setItem(SESSION_KEY, sessionToken);
   }
 
@@ -212,6 +222,10 @@ async function bootstrap() {
   apiOnline = await detectApiMode();
 
   renderBackendStatus();
+
+  if (apiOnline) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 
   if (apiOnline && sessionToken) {
     try {
