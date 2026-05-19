@@ -338,7 +338,7 @@ function setView(viewName) {
   });
 
   if (viewName === "admin") {
-    renderAdmin();
+    refreshSharedData().then(() => renderAdmin());
   }
 
   if (viewName === "calendar") {
@@ -347,6 +347,19 @@ function setView(viewName) {
 
   if (viewName === "announcements") {
     renderAnnouncements();
+  }
+}
+
+async function refreshSharedData() {
+  if (!apiOnline || !sessionToken) return false;
+
+  try {
+    const result = await apiRequest("auth/me");
+    applyServerData(result);
+    return true;
+  } catch (error) {
+    alert(error.message);
+    return false;
   }
 }
 
@@ -1224,6 +1237,16 @@ $("#announcementForm").addEventListener("submit", async (event) => {
   $("#announcementId").value = "";
   renderAnnouncements();
   renderAdminAnnouncements();
+});
+
+$("#refreshAdminData").addEventListener("click", async () => {
+  const button = $("#refreshAdminData");
+  button.disabled = true;
+  button.textContent = "Refreshing...";
+  await refreshSharedData();
+  renderAdmin();
+  button.disabled = false;
+  button.textContent = "Refresh list";
 });
 
 $("#prevMonth").addEventListener("click", () => {
