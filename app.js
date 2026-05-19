@@ -77,6 +77,7 @@ saveState();
 let apiOnline = false;
 let sessionToken = localStorage.getItem(SESSION_KEY) || "";
 let apiDiagnostic = "";
+let adminRefreshTimer = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -339,6 +340,9 @@ function setView(viewName) {
 
   if (viewName === "admin") {
     refreshSharedData().then(() => renderAdmin());
+    startAdminAutoRefresh();
+  } else {
+    stopAdminAutoRefresh();
   }
 
   if (viewName === "calendar") {
@@ -348,6 +352,25 @@ function setView(viewName) {
   if (viewName === "announcements") {
     renderAnnouncements();
   }
+}
+
+function startAdminAutoRefresh() {
+  stopAdminAutoRefresh();
+  adminRefreshTimer = window.setInterval(async () => {
+    if ($("#adminView").classList.contains("hidden")) {
+      stopAdminAutoRefresh();
+      return;
+    }
+
+    const refreshed = await refreshSharedData();
+    if (refreshed) renderAdmin($("#adminUserId").value);
+  }, 8000);
+}
+
+function stopAdminAutoRefresh() {
+  if (!adminRefreshTimer) return;
+  window.clearInterval(adminRefreshTimer);
+  adminRefreshTimer = null;
 }
 
 async function refreshSharedData() {
@@ -1010,6 +1033,7 @@ $("#registerForm").addEventListener("submit", async (event) => {
         email,
         password: $("#registerPassword").value
       });
+      applyServerData(result);
       $("#registerForm").reset();
       alert(result.message || "Account created.");
     } catch (error) {

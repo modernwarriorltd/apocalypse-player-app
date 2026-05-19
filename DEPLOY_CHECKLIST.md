@@ -10,10 +10,10 @@ At the top level of the GitHub repository, these must be visible:
 - `app.js`
 - `package.json`
 - `netlify.toml`
-- `netlify/functions/api.js`
-- `netlify/functions/health.js`
+- `netlify/functions/api.mjs`
+- `netlify/functions/health.mjs`
 
-If `netlify/functions/health.js` is missing in GitHub, Netlify cannot deploy the backend.
+If `netlify/functions/health.mjs` is missing in GitHub, Netlify cannot deploy the backend.
 
 ## Netlify settings
 
