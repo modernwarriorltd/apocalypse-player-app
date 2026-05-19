@@ -81,6 +81,9 @@
             <button class="tab" type="button" data-view="booking">Booking</button>
             <button class="tab" type="button" data-view="supplies">Supplies</button>
             <button class="tab" type="button" data-view="socials">Socials</button>
+            <button class="tab" type="button" data-view="rules">Site Rules</button>
+            <button class="tab" type="button" data-view="joules">Joules/FPS Chart</button>
+            <button class="tab" type="button" data-view="contact">Contact Us</button>
             <button class="tab admin-only hidden" type="button" data-view="admin">Admin</button>
           </nav>
 
@@ -269,6 +272,85 @@
             </div>
           </section>
 
+          <section class="view hidden" id="rulesView">
+            <div class="page-heading">
+              <p class="eyebrow">Site Rules</p>
+              <h1>Apocalypse Airsoft rules</h1>
+            </div>
+            <article class="content-panel rules-content">
+              <h2>Limits</h2>
+              <ul>
+                <li>Full auto spec rifles and pistols 1.3 Joules</li>
+                <li>DMR (Semi locked) 1.88 Joules</li>
+                <li>Bolt action snipers 2.32 Joules</li>
+              </ul>
+
+              <h2>Rules</h2>
+              <p>By playing Apocalypse Airsoft, you must agree to the rules set out on this page before being given the opportunity to engage in our activities.</p>
+              <p>The game is physically and mentally intense and may require extreme exertion to play.</p>
+              <p>The games may be dangerous if not played in accordance with the stated rules, which can be read on the website and can be requested at the safe zone.</p>
+              <p>There is always a possibility of injury to others and yourself.</p>
+              <p>You confirm and agree that: You are fully aware of the risks to yourself and others involved in playing at Apocalypse Airsoft, and that I will never, under any circumstances, deliberately shoot anyone in the face or head.</p>
+              <p>You believe you are physically fit and mentally able to take the strain and exertion involved in playing the games.</p>
+              <p>You will comply with Apocalypse Airsoft rules and use the equipment as instructed, and not so as to injure or hurt others, and will obey all instructions given by the marshals.</p>
+              <p>Eye protection must be worn at all times by participants during all games and until you are in the safe zone.</p>
+              <p>You will wear only safety glasses at your own risk if you are over 18. Under 18 years of age, you must wear a full face mask or full face protection.</p>
+              <p>If you do not have suitable eye protection, I will not be able to take part. This means that your goggles or face mask that you wish to use must withstand close-range impact from a 6mm Airsoft BB fired at 500 fps.</p>
+              <p>Only 6mm BB's must be used.</p>
+              <p>The marshal's word is final. Anyone failing to follow these rules may and will be removed from the game and even the site.</p>
+              <p>You will always have a barrel sock on all guns with magazines removed at all times unless in the game zone. Pistols must be holstered without a magazine unless in the game zone.</p>
+              <p>If the participant is under 18 years of age, a parent or legal guardian must sign a disclaimer form granting permission for the child to participate without their presence.</p>
+              <p>Hires who choose to wear mesh masks do so at their own risk. Apocalypse Airsoft does not guarantee the effectiveness of mesh masks in providing adequate protection, and individuals are responsible for ensuring their personal safety.</p>
+              <p>You hereby release, remise, and forever discharge from any claims and liabilities whatsoever without limitations that I might have against Apocalypse Airsoft and the owners of the property on which the game is being played and any other player in the game who might injure you, however arising. And I make this release on behalf of myself, my heirs, executors, assigns and administrators. As well as being responsible for booking issued equipment back in and any debts generated whilst playing Airsoft at Apocalypse Airsoft, i.e. site fees/bb's/hire of equipment/damage or loss.</p>
+              <p>Apocalypse Airsoft will not be held liable for any personal injury or damage to property as a result of any playing or attending.</p>
+            </article>
+          </section>
+
+          <section class="view hidden" id="joulesView">
+            <div class="page-heading">
+              <p class="eyebrow">Joules/FPS Chart</p>
+              <h1>Power limits</h1>
+            </div>
+            <article class="content-panel">
+              <ul>
+                <li>Full auto spec rifles and pistols 1.3 Joules</li>
+                <li>DMR (Semi locked) 1.88 Joules</li>
+                <li>Bolt action snipers 2.32 Joules</li>
+              </ul>
+              <img class="chart-image" src="assets/joules-fps-chart.png" alt="Joules and FPS conversion chart" />
+            </article>
+          </section>
+
+          <section class="view hidden" id="contactView">
+            <div class="page-heading">
+              <p class="eyebrow">Contact Us</p>
+              <h1>Ask a question</h1>
+            </div>
+            <form class="form-panel contact-form" id="contactForm">
+              <label>
+                Name
+                <input id="contactName" type="text" autocomplete="name" required />
+              </label>
+              <label>
+                Subject
+                <input id="contactSubject" type="text" required />
+              </label>
+              <label>
+                Contact number
+                <input id="contactPhone" type="tel" autocomplete="tel" />
+              </label>
+              <label>
+                Contact email
+                <input id="contactEmail" type="email" autocomplete="email" required />
+              </label>
+              <label>
+                Question
+                <textarea id="contactQuestion" rows="6" required></textarea>
+              </label>
+              <button class="primary-action" type="submit">Submit question</button>
+            </form>
+          </section>
+
           <section class="view hidden" id="adminView">
             <div class="page-heading">
               <p class="eyebrow">Admin backend</p>
@@ -332,6 +414,24 @@
                     <input id="eventDate" type="date" required />
                   </label>
                   <label>
+                    Repeats
+                    <select id="eventRepeats">
+                      <option value="none">Does not repeat</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                  </label>
+                  <label>
+                    Repeat until
+                    <input id="eventRepeatUntil" type="date" />
+                  </label>
+                  <label>
+                    Booking link
+                    <input id="eventBookingUrl" type="url" value="https://apocalypse249.co.uk/v2/" />
+                  </label>
+                  <label>
                     Notes
                     <textarea id="eventNotes" rows="3"></textarea>
                   </label>
@@ -355,6 +455,11 @@
                   <button class="primary-action" type="submit">Save announcement</button>
                 </form>
                 <div class="admin-announcements" id="adminAnnouncements"></div>
+              </div>
+
+              <div class="admin-panel contact-admin">
+                <h2>Contact messages</h2>
+                <div class="admin-contact-messages" id="adminContactMessages"></div>
               </div>
             </div>
           </section>

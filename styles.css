@@ -573,6 +573,11 @@ textarea {
   box-shadow: 0 0 0 3px rgba(255, 93, 85, 0.2);
 }
 
+.event-booking-link {
+  justify-self: start;
+  margin-top: 4px;
+}
+
 .announcement-card {
   overflow: hidden;
   padding: 0;
@@ -612,6 +617,65 @@ textarea {
   color: #ffffff;
 }
 
+.content-panel,
+.contact-message {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.content-panel h2 {
+  margin: 22px 0 10px;
+}
+
+.content-panel h2:first-child {
+  margin-top: 0;
+}
+
+.content-panel p,
+.content-panel li,
+.contact-message p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.content-panel ul {
+  margin: 0 0 18px;
+  padding-left: 22px;
+}
+
+.rules-content {
+  max-width: 920px;
+}
+
+.chart-image {
+  width: min(737px, 100%);
+  display: block;
+  margin-top: 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.contact-form {
+  max-width: 760px;
+}
+
+.contact-admin {
+  grid-column: 1 / -1;
+}
+
+.admin-contact-messages {
+  display: grid;
+  gap: 12px;
+}
+
+.contact-message.is-replied {
+  opacity: 0.72;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -620,7 +684,8 @@ textarea {
 }
 
 .events-admin,
-.announcements-admin {
+.announcements-admin,
+.contact-admin {
   grid-column: 1 / -1;
   grid-template-columns: 1fr 1fr;
 }

@@ -31,6 +31,10 @@ When deployed to Netlify with the included function, users, approvals, RIFs, eve
 
 Uploaded profile, RIF and announcement images are stored separately in a Netlify Blobs image store. The main app data stores only image URLs, which keeps updates faster and avoids browser storage quota problems.
 
+Calendar events can be one-off or recurring daily, weekly, monthly or yearly, with an optional repeat-until date and booking link.
+
+The app includes Site Rules, a Joules/FPS chart, and a Contact Us form. Contact form submissions are saved into the admin backend for review and reply.
+
 When opened locally without Netlify Functions, the app still falls back to browser storage for testing.
 
 Password reset is still a simple prototype reset. A production version should use email verification before changing passwords.

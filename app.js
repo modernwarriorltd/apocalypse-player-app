@@ -68,7 +68,8 @@ const defaultState = {
       createdAt: "2026-05-18T12:00:00.000Z",
       cheers: []
     }
-  ]
+  ],
+  contactMessages: []
 };
 
 let state = loadState();
@@ -96,6 +97,7 @@ function migrateState(loadedState) {
   loadedState.users ??= [];
   loadedState.events ??= [];
   loadedState.announcements ??= [];
+  loadedState.contactMessages ??= [];
 
   loadedState.users.forEach((user) => {
     user.rifs ??= [];
@@ -206,6 +208,7 @@ function applyServerData(result) {
     state.users = result.data.users || [];
     state.events = result.data.events || [];
     state.announcements = result.data.announcements || [];
+    state.contactMessages = result.data.contactMessages || [];
   }
 
   if (result.user) {
@@ -371,6 +374,72 @@ function formatDate(dateValue) {
     month: "short",
     year: "numeric"
   }).format(new Date(`${dateValue}T12:00:00`));
+}
+
+function toDate(dateValue) {
+  return new Date(`${dateValue}T12:00:00`);
+}
+
+function toDateKey(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function addRepeatInterval(date, repeats) {
+  const next = new Date(date);
+
+  if (repeats === "daily") next.setDate(next.getDate() + 1);
+  if (repeats === "weekly") next.setDate(next.getDate() + 7);
+  if (repeats === "monthly") next.setMonth(next.getMonth() + 1);
+  if (repeats === "yearly") next.setFullYear(next.getFullYear() + 1);
+
+  return next;
+}
+
+function expandedEvents(startDate, endDate) {
+  const occurrences = [];
+
+  state.events.forEach((event) => {
+    if (!event.date) return;
+
+    const repeats = event.repeats || "none";
+    const eventStart = toDate(event.date);
+    const repeatUntil = event.repeatUntil ? toDate(event.repeatUntil) : endDate;
+    const hardStop = repeatUntil < endDate ? repeatUntil : endDate;
+
+    if (repeats === "none") {
+      if (eventStart >= startDate && eventStart <= endDate) {
+        occurrences.push({ ...event, occurrenceId: event.id, occurrenceDate: event.date });
+      }
+      return;
+    }
+
+    let cursor = new Date(eventStart);
+    let guard = 0;
+    while (cursor <= hardStop && guard < 370) {
+      if (cursor >= startDate) {
+        const occurrenceDate = toDateKey(cursor);
+        occurrences.push({
+          ...event,
+          occurrenceId: `${event.id}-${occurrenceDate}`,
+          occurrenceDate
+        });
+      }
+      cursor = addRepeatInterval(cursor, repeats);
+      guard += 1;
+    }
+  });
+
+  return occurrences.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate));
+}
+
+function repeatLabel(event) {
+  if (!event.repeats || event.repeats === "none") return "";
+  const until = event.repeatUntil ? ` until ${formatDate(event.repeatUntil)}` : "";
+  return `Repeats ${event.repeats}${until}`;
 }
 
 function setView(viewName) {
@@ -660,20 +729,28 @@ function playPewPewSound() {
 }
 
 function renderEvents() {
-  const futureEvents = [...state.events].sort((a, b) => a.date.localeCompare(b.date));
+  const startDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+  const endDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0, 23, 59, 59);
+  const futureEvents = expandedEvents(startDate, endDate);
   const eventHtml = futureEvents.length
     ? futureEvents
         .map(
           (event) => `
-            <article class="event-card" id="event-${event.id}">
+            <article class="event-card" id="event-${event.occurrenceId}">
               <h2>${escapeHtml(event.title)}</h2>
-              <p><strong>${formatDate(event.date)}</strong></p>
+              <p><strong>${formatDate(event.occurrenceDate)}</strong></p>
+              ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
+              ${
+                event.bookingUrl
+                  ? `<a class="small-button event-booking-link" href="${escapeHtml(event.bookingUrl)}" target="_blank" rel="noreferrer">Book this event</a>`
+                  : ""
+              }
             </article>
           `
         )
         .join("")
-    : `<article class="event-card"><h2>No events listed</h2><p>The admin team can add upcoming events.</p></article>`;
+    : `<article class="event-card"><h2>No events listed</h2><p>The admin team can add upcoming events for this month.</p></article>`;
 
   $("#eventList").innerHTML = eventHtml;
 }
@@ -689,12 +766,11 @@ function renderMiniCalendar() {
 
   const year = calendarMonth.getFullYear();
   const month = calendarMonth.getMonth();
-  const monthEvents = state.events.filter((event) => {
-    const eventDate = new Date(`${event.date}T12:00:00`);
-    return eventDate.getFullYear() === year && eventDate.getMonth() === month;
-  });
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
+  const monthEvents = expandedEvents(monthStart, monthEnd);
   const eventsByDay = monthEvents.reduce((days, event) => {
-    const day = Number(event.date.slice(-2));
+    const day = Number(event.occurrenceDate.slice(-2));
     days[day] ??= [];
     days[day].push(event);
     return days;
@@ -716,7 +792,7 @@ function renderMiniCalendar() {
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const dayEvents = eventsByDay[day] || [];
-    const eventTarget = dayEvents[0]?.id || "";
+    const eventTarget = dayEvents[0]?.occurrenceId || "";
     const eventDots = dayEvents.map(() => `<span></span>`).join("");
     grid.insertAdjacentHTML(
       "beforeend",
@@ -731,7 +807,7 @@ function renderMiniCalendar() {
 
   $$(".calendar-day.has-event").forEach((button) => {
     button.addEventListener("click", () => {
-      const target = $(`#event-${button.dataset.eventId}`);
+      const target = document.getElementById(`event-${button.dataset.eventId}`);
       target?.scrollIntoView({ behavior: "smooth", block: "start" });
       target?.classList.add("is-highlighted");
       window.setTimeout(() => target?.classList.remove("is-highlighted"), 1300);
@@ -789,7 +865,8 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
         <article class="user-row">
           <div>
             <h3>${escapeHtml(event.title)}</h3>
-            <p>${formatDate(event.date)} | ${escapeHtml(event.notes || "No notes")}</p>
+            <p>${formatDate(event.date)} | ${escapeHtml(repeatLabel(event) || "Does not repeat")} | ${escapeHtml(event.notes || "No notes")}</p>
+            ${event.bookingUrl ? `<p>Booking: ${escapeHtml(event.bookingUrl)}</p>` : ""}
           </div>
           <div class="card-actions">
             <button class="small-button edit-event" type="button" data-id="${event.id}">Edit</button>
@@ -803,6 +880,7 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
   $$(".edit-event").forEach((button) => button.addEventListener("click", () => fillEvent(button.dataset.id)));
   $$(".delete-event").forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.id)));
   renderAdminAnnouncements();
+  renderAdminContactMessages();
 }
 
 function renderAdminAnnouncements() {
@@ -868,6 +946,84 @@ async function deleteAnnouncement(announcementId) {
   saveState();
   renderAnnouncements();
   renderAdminAnnouncements();
+}
+
+function renderAdminContactMessages() {
+  const list = $("#adminContactMessages");
+  if (!list) return;
+
+  const messages = [...(state.contactMessages || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  if (!messages.length) {
+    list.innerHTML = `<article class="user-row"><div><h3>No messages</h3><p>Contact form submissions will appear here.</p></div></article>`;
+    return;
+  }
+
+  list.innerHTML = messages
+    .map(
+      (message) => `
+        <article class="contact-message ${message.replied ? "is-replied" : ""}">
+          <div>
+            <h3>${escapeHtml(message.subject)}</h3>
+            <p><strong>${escapeHtml(message.name)}</strong> | ${escapeHtml(message.email)}${message.phone ? ` | ${escapeHtml(message.phone)}` : ""}</p>
+            <p>${escapeHtml(message.question)}</p>
+            <p>${message.replied ? "Replied" : "Awaiting reply"}</p>
+          </div>
+          <div class="card-actions">
+            <a class="small-button" href="mailto:${escapeHtml(message.email)}?subject=${encodeURIComponent(`Re: ${message.subject}`)}">Reply by email</a>
+            ${
+              message.replied
+                ? ""
+                : `<button class="small-button mark-contact-replied" type="button" data-id="${message.id}">Mark replied</button>`
+            }
+            <button class="small-button danger delete-contact-message" type="button" data-id="${message.id}">Delete</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  $$(".mark-contact-replied").forEach((button) =>
+    button.addEventListener("click", () => markContactReplied(button.dataset.id))
+  );
+  $$(".delete-contact-message").forEach((button) =>
+    button.addEventListener("click", () => deleteContactMessage(button.dataset.id))
+  );
+}
+
+async function markContactReplied(messageId) {
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/contact/mark-replied", { id: messageId });
+      applyServerData(result);
+      renderAdminContactMessages();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  const message = state.contactMessages.find((item) => item.id === messageId);
+  if (message) message.replied = true;
+  saveState();
+  renderAdminContactMessages();
+}
+
+async function deleteContactMessage(messageId) {
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/contact/delete", { id: messageId });
+      applyServerData(result);
+      renderAdminContactMessages();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  state.contactMessages = state.contactMessages.filter((message) => message.id !== messageId);
+  saveState();
+  renderAdminContactMessages();
 }
 
 function fillAdminUser(userId) {
@@ -941,6 +1097,9 @@ function fillEvent(eventId) {
   $("#eventId").value = event.id;
   $("#eventTitle").value = event.title;
   $("#eventDate").value = event.date;
+  $("#eventRepeats").value = event.repeats || "none";
+  $("#eventRepeatUntil").value = event.repeatUntil || "";
+  $("#eventBookingUrl").value = event.bookingUrl || "https://apocalypse249.co.uk/v2/";
   $("#eventNotes").value = event.notes || "";
   $("#eventTitle").focus();
 }
@@ -1205,6 +1364,45 @@ $("#rifForm").addEventListener("submit", async (event) => {
   submitButton.textContent = "Save RIF";
 });
 
+$("#contactForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = event.submitter;
+  submitButton.disabled = true;
+  submitButton.textContent = "Submitting...";
+  const messageData = {
+    id: makeId("contact"),
+    name: $("#contactName").value.trim(),
+    subject: $("#contactSubject").value.trim(),
+    phone: $("#contactPhone").value.trim(),
+    email: $("#contactEmail").value.trim(),
+    question: $("#contactQuestion").value.trim(),
+    createdAt: new Date().toISOString(),
+    replied: false
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("contact/submit", messageData);
+      applyServerData(result);
+      $("#contactForm").reset();
+      alert(result.message || "Question sent to the admin team.");
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Submit question";
+    }
+    return;
+  }
+
+  state.contactMessages.push(messageData);
+  saveState();
+  $("#contactForm").reset();
+  alert("Question saved for the admin team.");
+  submitButton.disabled = false;
+  submitButton.textContent = "Submit question";
+});
+
 $("#adminUserForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const user = state.users.find((item) => item.id === $("#adminUserId").value);
@@ -1250,7 +1448,10 @@ $("#eventForm").addEventListener("submit", async (event) => {
     id: eventId || makeId("event"),
     title: $("#eventTitle").value.trim(),
     date: $("#eventDate").value,
-    notes: $("#eventNotes").value.trim()
+    notes: $("#eventNotes").value.trim(),
+    repeats: $("#eventRepeats").value,
+    repeatUntil: $("#eventRepeatUntil").value,
+    bookingUrl: $("#eventBookingUrl").value.trim() || "https://apocalypse249.co.uk/v2/"
   };
 
   if (apiOnline) {
