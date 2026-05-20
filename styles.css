@@ -693,6 +693,12 @@ textarea {
   color: #ffffff;
 }
 
+.map-lock-toggle.is-active {
+  background: #6f7f42;
+  border-color: #a7be62;
+  color: #ffffff;
+}
+
 .map-stage {
   width: 100%;
   height: clamp(420px, 68vh, 760px);
@@ -702,6 +708,7 @@ textarea {
   background: #f5f5f0;
   touch-action: none;
   position: relative;
+  perspective: 1000px;
 }
 
 .map-content {
@@ -710,6 +717,7 @@ textarea {
   left: 0;
   width: min(1458px, 170vw);
   transform-origin: 0 0;
+  transform-style: preserve-3d;
   will-change: transform;
 }
 
@@ -739,6 +747,11 @@ textarea {
 
 .map-marker:active {
   cursor: grabbing;
+}
+
+.map-marker.is-locked {
+  cursor: default;
+  opacity: 0.92;
 }
 
 .map-marker.red {

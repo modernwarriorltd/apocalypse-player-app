@@ -83,6 +83,9 @@ let mapState = {
   scale: 1,
   x: 0,
   y: 0,
+  rotation: 0,
+  tilt: 0,
+  markersLocked: false,
   markerMode: "red",
   markers: loadMapMarkers(),
   pointers: new Map(),
@@ -495,7 +498,7 @@ function setView(viewName) {
   }
 
   if (viewName === "siteDetails") {
-    renderMap();
+    window.requestAnimationFrame(fitMapToStage);
   }
 }
 
@@ -617,17 +620,24 @@ function renderMap() {
   const content = $("#mapContent");
   if (!content) return;
 
-  content.style.transform = `translate(${mapState.x}px, ${mapState.y}px) scale(${mapState.scale})`;
+  content.style.transform = `translate(${mapState.x}px, ${mapState.y}px) perspective(900px) rotateX(${mapState.tilt}deg) rotate(${mapState.rotation}deg) scale(${mapState.scale})`;
 
   $$(".marker-mode").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.markerMode === mapState.markerMode);
   });
+
+  const lockButton = $("#lockMapMarkers");
+  if (lockButton) {
+    lockButton.textContent = mapState.markersLocked ? "Unlock markers" : "Lock markers";
+    lockButton.classList.toggle("is-active", mapState.markersLocked);
+  }
 
   ["red", "blue", "objective"].forEach((markerName) => {
     const marker = document.querySelector(`[data-marker="${markerName}"]`);
     const position = mapState.markers[markerName];
     if (!marker) return;
     marker.classList.toggle("hidden", !position);
+    marker.classList.toggle("is-locked", mapState.markersLocked);
     if (position) {
       marker.style.left = `${position.x * 100}%`;
       marker.style.top = `${position.y * 100}%`;
@@ -635,9 +645,31 @@ function renderMap() {
   });
 }
 
+function fitMapToStage() {
+  const stage = $("#mapStage");
+  const content = $("#mapContent");
+  if (!stage || !content) return;
+
+  const stageWidth = stage.clientWidth;
+  const contentWidth = content.offsetWidth;
+  if (!stageWidth || !contentWidth) {
+    renderMap();
+    return;
+  }
+
+  const scale = Math.min(1, stageWidth / contentWidth);
+  mapState.scale = scale;
+  mapState.x = Math.max(0, (stageWidth - contentWidth * scale) / 2);
+  mapState.y = 14;
+  mapState.rotation = 0;
+  mapState.tilt = 0;
+  renderMap();
+}
+
 function setMarkerFromStagePoint(clientX, clientY, markerName = mapState.markerMode) {
   const stage = $("#mapStage");
   const content = $("#mapContent");
+  if (mapState.markersLocked) return;
   if (!stage || !content) return;
 
   const rect = stage.getBoundingClientRect();
@@ -659,10 +691,20 @@ function zoomMapAt(clientX, clientY, nextScale) {
   const pointX = clientX - rect.left;
   const pointY = clientY - rect.top;
   const oldScale = mapState.scale;
-  const scale = Math.min(4, Math.max(0.75, nextScale));
+  const scale = Math.min(4, Math.max(0.25, nextScale));
   mapState.x = pointX - ((pointX - mapState.x) / oldScale) * scale;
   mapState.y = pointY - ((pointY - mapState.y) / oldScale) * scale;
   mapState.scale = scale;
+  renderMap();
+}
+
+function adjustMapRotation(amount) {
+  mapState.rotation = (mapState.rotation + amount) % 360;
+  renderMap();
+}
+
+function adjustMapTilt(amount) {
+  mapState.tilt = Math.min(55, Math.max(-55, mapState.tilt + amount));
   renderMap();
 }
 
@@ -1641,14 +1683,33 @@ $$(".marker-mode").forEach((button) => {
 });
 
 $("#resetMapView").addEventListener("click", () => {
-  mapState.scale = 1;
-  mapState.x = 0;
-  mapState.y = 0;
+  fitMapToStage();
+});
+
+$("#rotateMapLeft").addEventListener("click", () => {
+  adjustMapRotation(-15);
+});
+
+$("#rotateMapRight").addEventListener("click", () => {
+  adjustMapRotation(15);
+});
+
+$("#tiltMapUp").addEventListener("click", () => {
+  adjustMapTilt(-10);
+});
+
+$("#tiltMapDown").addEventListener("click", () => {
+  adjustMapTilt(10);
+});
+
+$("#lockMapMarkers").addEventListener("click", () => {
+  mapState.markersLocked = !mapState.markersLocked;
   renderMap();
 });
 
 $("#clearMapMarkers").addEventListener("click", () => {
   mapState.markers = {};
+  mapState.markersLocked = false;
   saveMapMarkers();
   renderMap();
 });
@@ -1665,7 +1726,7 @@ $("#mapStage").addEventListener("wheel", (event) => {
 
 $("#mapStage").addEventListener("pointerdown", (event) => {
   const marker = event.target.closest(".map-marker");
-  if (marker) {
+  if (marker && !mapState.markersLocked) {
     mapState.draggingMarker = marker.dataset.marker;
     marker.setPointerCapture(event.pointerId);
   }
