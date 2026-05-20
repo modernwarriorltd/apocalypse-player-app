@@ -2,6 +2,7 @@ const STORAGE_KEY = "apocalypse249PlayerApp";
 const PLAYER_PREFIX = "APOC-PLAYER";
 const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const SESSION_KEY = "apocalypse249SessionToken";
+const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 
 const defaultState = {
   currentUserId: null,
@@ -78,6 +79,17 @@ let apiOnline = false;
 let sessionToken = localStorage.getItem(SESSION_KEY) || "";
 let apiDiagnostic = "";
 let adminRefreshTimer = null;
+let mapState = {
+  scale: 1,
+  x: 0,
+  y: 0,
+  markerMode: "red",
+  markers: loadMapMarkers(),
+  pointers: new Map(),
+  lastPan: null,
+  lastPinch: null,
+  draggingMarker: null
+};
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -91,6 +103,21 @@ function loadState() {
   } catch {
     return migrateState(structuredClone(defaultState));
   }
+}
+
+function loadMapMarkers() {
+  const saved = localStorage.getItem(MAP_MARKERS_KEY);
+  if (!saved) return {};
+
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return {};
+  }
+}
+
+function saveMapMarkers() {
+  localStorage.setItem(MAP_MARKERS_KEY, JSON.stringify(mapState.markers));
 }
 
 function migrateState(loadedState) {
@@ -466,6 +493,10 @@ function setView(viewName) {
   if (viewName === "announcements") {
     renderAnnouncements();
   }
+
+  if (viewName === "siteDetails") {
+    renderMap();
+  }
 }
 
 function startAdminAutoRefresh() {
@@ -580,6 +611,63 @@ function renderRifs(user) {
     template.querySelector(".delete-rif").addEventListener("click", () => deleteRif(rif.id));
     list.appendChild(template);
   });
+}
+
+function renderMap() {
+  const content = $("#mapContent");
+  if (!content) return;
+
+  content.style.transform = `translate(${mapState.x}px, ${mapState.y}px) scale(${mapState.scale})`;
+
+  $$(".marker-mode").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.markerMode === mapState.markerMode);
+  });
+
+  ["red", "blue", "objective"].forEach((markerName) => {
+    const marker = document.querySelector(`[data-marker="${markerName}"]`);
+    const position = mapState.markers[markerName];
+    if (!marker) return;
+    marker.classList.toggle("hidden", !position);
+    if (position) {
+      marker.style.left = `${position.x * 100}%`;
+      marker.style.top = `${position.y * 100}%`;
+    }
+  });
+}
+
+function setMarkerFromStagePoint(clientX, clientY, markerName = mapState.markerMode) {
+  const stage = $("#mapStage");
+  const content = $("#mapContent");
+  if (!stage || !content) return;
+
+  const rect = stage.getBoundingClientRect();
+  const x = (clientX - rect.left - mapState.x) / mapState.scale / content.offsetWidth;
+  const y = (clientY - rect.top - mapState.y) / mapState.scale / content.offsetHeight;
+  mapState.markers[markerName] = {
+    x: Math.min(1, Math.max(0, x)),
+    y: Math.min(1, Math.max(0, y))
+  };
+  saveMapMarkers();
+  renderMap();
+}
+
+function zoomMapAt(clientX, clientY, nextScale) {
+  const stage = $("#mapStage");
+  if (!stage) return;
+
+  const rect = stage.getBoundingClientRect();
+  const pointX = clientX - rect.left;
+  const pointY = clientY - rect.top;
+  const oldScale = mapState.scale;
+  const scale = Math.min(4, Math.max(0.75, nextScale));
+  mapState.x = pointX - ((pointX - mapState.x) / oldScale) * scale;
+  mapState.y = pointY - ((pointY - mapState.y) / oldScale) * scale;
+  mapState.scale = scale;
+  renderMap();
+}
+
+function pointerDistance(first, second) {
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
 }
 
 function editRif(rifId) {
@@ -1544,6 +1632,112 @@ $("#nextMonth").addEventListener("click", () => {
   calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
   renderMiniCalendar();
 });
+
+$$(".marker-mode").forEach((button) => {
+  button.addEventListener("click", () => {
+    mapState.markerMode = button.dataset.markerMode;
+    renderMap();
+  });
+});
+
+$("#resetMapView").addEventListener("click", () => {
+  mapState.scale = 1;
+  mapState.x = 0;
+  mapState.y = 0;
+  renderMap();
+});
+
+$("#clearMapMarkers").addEventListener("click", () => {
+  mapState.markers = {};
+  saveMapMarkers();
+  renderMap();
+});
+
+$("#siteRulesJump").addEventListener("click", () => {
+  setView("rules");
+});
+
+$("#mapStage").addEventListener("wheel", (event) => {
+  event.preventDefault();
+  const factor = event.deltaY > 0 ? 0.9 : 1.1;
+  zoomMapAt(event.clientX, event.clientY, mapState.scale * factor);
+});
+
+$("#mapStage").addEventListener("pointerdown", (event) => {
+  const marker = event.target.closest(".map-marker");
+  if (marker) {
+    mapState.draggingMarker = marker.dataset.marker;
+    marker.setPointerCapture(event.pointerId);
+  }
+
+  mapState.pointers.set(event.pointerId, event);
+
+  if (mapState.pointers.size === 1 && !mapState.draggingMarker) {
+    mapState.lastPan = {
+      clientX: event.clientX,
+      clientY: event.clientY
+    };
+  }
+
+  if (mapState.pointers.size === 2) {
+    const pointers = Array.from(mapState.pointers.values());
+    mapState.lastPinch = {
+      distance: pointerDistance(pointers[0], pointers[1]),
+      scale: mapState.scale
+    };
+  }
+});
+
+$("#mapStage").addEventListener("pointermove", (event) => {
+  if (!mapState.pointers.has(event.pointerId)) return;
+  mapState.pointers.set(event.pointerId, event);
+
+  if (mapState.draggingMarker) {
+    setMarkerFromStagePoint(event.clientX, event.clientY, mapState.draggingMarker);
+    return;
+  }
+
+  if (mapState.pointers.size === 2 && mapState.lastPinch) {
+    const pointers = Array.from(mapState.pointers.values());
+    const distance = pointerDistance(pointers[0], pointers[1]);
+    const midpoint = {
+      x: (pointers[0].clientX + pointers[1].clientX) / 2,
+      y: (pointers[0].clientY + pointers[1].clientY) / 2
+    };
+    zoomMapAt(midpoint.x, midpoint.y, mapState.lastPinch.scale * (distance / mapState.lastPinch.distance));
+    return;
+  }
+
+  if (mapState.lastPan) {
+    mapState.x += event.clientX - mapState.lastPan.clientX;
+    mapState.y += event.clientY - mapState.lastPan.clientY;
+    mapState.lastPan = {
+      clientX: event.clientX,
+      clientY: event.clientY
+    };
+    renderMap();
+  }
+});
+
+function endMapPointer(event) {
+  const wasTap = mapState.pointers.size === 1 && mapState.lastPan
+    ? Math.hypot(event.clientX - mapState.lastPan.clientX, event.clientY - mapState.lastPan.clientY) < 8
+    : false;
+
+  if (mapState.draggingMarker) {
+    setMarkerFromStagePoint(event.clientX, event.clientY, mapState.draggingMarker);
+  } else if (wasTap && event.target.closest("#mapContent")) {
+    setMarkerFromStagePoint(event.clientX, event.clientY);
+  }
+
+  mapState.pointers.delete(event.pointerId);
+  mapState.draggingMarker = null;
+  mapState.lastPan = null;
+  mapState.lastPinch = null;
+}
+
+$("#mapStage").addEventListener("pointerup", endMapPointer);
+$("#mapStage").addEventListener("pointercancel", endMapPointer);
 
 $$("[data-view]").forEach((button) => {
   button.addEventListener("click", () => {

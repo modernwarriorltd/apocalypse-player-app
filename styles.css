@@ -676,6 +676,83 @@ textarea {
   opacity: 0.72;
 }
 
+.site-details-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.marker-mode.is-active {
+  background: var(--accent);
+  border-color: #ff5d55;
+  color: #ffffff;
+}
+
+.map-stage {
+  width: 100%;
+  height: clamp(420px, 68vh, 760px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f5f5f0;
+  touch-action: none;
+  position: relative;
+}
+
+.map-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(1458px, 170vw);
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.map-content img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.map-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  min-width: 54px;
+  min-height: 42px;
+  border: 2px solid white;
+  border-radius: 999px 999px 999px 0;
+  color: white;
+  cursor: grab;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 8px 10px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+}
+
+.map-marker:active {
+  cursor: grabbing;
+}
+
+.map-marker.red {
+  background: #c8322b;
+}
+
+.map-marker.blue {
+  background: #2268d8;
+}
+
+.map-marker.objective {
+  background: #222;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

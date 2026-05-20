@@ -81,6 +81,7 @@
             <button class="tab" type="button" data-view="booking">Booking</button>
             <button class="tab" type="button" data-view="supplies">Supplies</button>
             <button class="tab" type="button" data-view="socials">Socials</button>
+            <button class="tab" type="button" data-view="siteDetails">Site Details</button>
             <button class="tab" type="button" data-view="rules">Site Rules</button>
             <button class="tab" type="button" data-view="joules">Joules/FPS Chart</button>
             <button class="tab" type="button" data-view="contact">Contact Us</button>
@@ -270,6 +271,35 @@
                 </a>
               </div>
             </div>
+          </section>
+
+          <section class="view hidden" id="siteDetailsView">
+            <div class="page-heading">
+              <p class="eyebrow">Site Details</p>
+              <h1>Site map</h1>
+            </div>
+            <article class="content-panel site-details-panel">
+              <p>
+                The site is currently having some work carried out, the range has already been moved and the safe zone improvements will come over the coming weeks with new shop, cafe toliets and player bays. After this we will update the site map
+              </p>
+              <div class="map-toolbar">
+                <button class="small-button marker-mode is-active" type="button" data-marker-mode="red">Red respawn</button>
+                <button class="small-button marker-mode" type="button" data-marker-mode="blue">Blue respawn</button>
+                <button class="small-button marker-mode" type="button" data-marker-mode="objective">Objective</button>
+                <button class="small-button" type="button" id="resetMapView">Reset view</button>
+                <button class="small-button danger" type="button" id="clearMapMarkers">Clear markers</button>
+              </div>
+              <p class="readonly-note">Choose a marker, then tap the map to place it. Drag to move around, pinch or scroll to zoom.</p>
+              <div class="map-stage" id="mapStage">
+                <div class="map-content" id="mapContent">
+                  <img src="assets/site-map.png" alt="Apocalypse Airsoft site map" draggable="false" />
+                  <button class="map-marker red hidden" type="button" data-marker="red">Red</button>
+                  <button class="map-marker blue hidden" type="button" data-marker="blue">Blue</button>
+                  <button class="map-marker objective hidden" type="button" data-marker="objective">Obj</button>
+                </div>
+              </div>
+              <button class="primary-action link-action" type="button" id="siteRulesJump">View site rules</button>
+            </article>
           </section>
 
           <section class="view hidden" id="rulesView">
