@@ -312,13 +312,19 @@ textarea {
 }
 
 .photo-frame {
+  width: 35%;
   aspect-ratio: 4 / 5;
+  margin: 18px auto 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
   background:
     linear-gradient(135deg, rgba(200, 50, 43, 0.2), rgba(142, 167, 91, 0.12)),
     #10140f;
   display: grid;
   place-items: center;
   color: var(--muted);
+  font-size: 0.75rem;
   font-weight: 800;
   text-align: center;
 }

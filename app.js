@@ -712,6 +712,10 @@ function pointerDistance(first, second) {
   return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
 }
 
+function pointerAngle(first, second) {
+  return Math.atan2(second.clientY - first.clientY, second.clientX - first.clientX) * (180 / Math.PI);
+}
+
 function editRif(rifId) {
   const user = currentUser();
   const rif = user.rifs.find((item) => item.id === rifId);
@@ -1686,22 +1690,6 @@ $("#resetMapView").addEventListener("click", () => {
   fitMapToStage();
 });
 
-$("#rotateMapLeft").addEventListener("click", () => {
-  adjustMapRotation(-15);
-});
-
-$("#rotateMapRight").addEventListener("click", () => {
-  adjustMapRotation(15);
-});
-
-$("#tiltMapUp").addEventListener("click", () => {
-  adjustMapTilt(-10);
-});
-
-$("#tiltMapDown").addEventListener("click", () => {
-  adjustMapTilt(10);
-});
-
 $("#lockMapMarkers").addEventListener("click", () => {
   mapState.markersLocked = !mapState.markersLocked;
   renderMap();
@@ -1742,9 +1730,14 @@ $("#mapStage").addEventListener("pointerdown", (event) => {
 
   if (mapState.pointers.size === 2) {
     const pointers = Array.from(mapState.pointers.values());
+    const midpointY = (pointers[0].clientY + pointers[1].clientY) / 2;
     mapState.lastPinch = {
       distance: pointerDistance(pointers[0], pointers[1]),
-      scale: mapState.scale
+      angle: pointerAngle(pointers[0], pointers[1]),
+      midpointY,
+      scale: mapState.scale,
+      rotation: mapState.rotation,
+      tilt: mapState.tilt
     };
   }
 });
@@ -1761,11 +1754,15 @@ $("#mapStage").addEventListener("pointermove", (event) => {
   if (mapState.pointers.size === 2 && mapState.lastPinch) {
     const pointers = Array.from(mapState.pointers.values());
     const distance = pointerDistance(pointers[0], pointers[1]);
+    const angle = pointerAngle(pointers[0], pointers[1]);
     const midpoint = {
       x: (pointers[0].clientX + pointers[1].clientX) / 2,
       y: (pointers[0].clientY + pointers[1].clientY) / 2
     };
     zoomMapAt(midpoint.x, midpoint.y, mapState.lastPinch.scale * (distance / mapState.lastPinch.distance));
+    mapState.rotation = mapState.lastPinch.rotation + angle - mapState.lastPinch.angle;
+    mapState.tilt = Math.min(55, Math.max(-55, mapState.lastPinch.tilt + (midpoint.y - mapState.lastPinch.midpointY) / 5));
+    renderMap();
     return;
   }
 
