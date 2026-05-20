@@ -329,11 +329,17 @@ textarea {
   text-align: center;
 }
 
-.photo-frame img,
-.rif-image img {
+.photo-frame img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+}
+
+.rif-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   display: block;
 }
 
@@ -402,12 +408,13 @@ textarea {
 }
 
 .rif-card {
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 92px 1fr;
   align-items: center;
 }
 
 .rif-image {
-  aspect-ratio: 4 / 3;
+  width: 92px;
+  height: 72px;
   border-radius: 6px;
   overflow: hidden;
   background: #10140f;
