@@ -579,6 +579,7 @@ function fillProfileForm(user) {
   $("#profileAddress").value = user.address || "";
   $("#profileEmail").value = user.email || "";
   $("#profileUkara").value = user.ukara || "";
+  $("#profileUkaraExpiry").value = user.ukaraExpiry || "";
 }
 
 function renderProfileCard(user) {
@@ -1424,6 +1425,7 @@ $("#profileForm").addEventListener("submit", async (event) => {
         address: $("#profileAddress").value.trim(),
         email: $("#profileEmail").value.trim(),
         ukara: $("#profileUkara").value.trim(),
+        ukaraExpiry: $("#profileUkaraExpiry").value,
         photo
       });
       applyServerData(result);
@@ -1443,6 +1445,7 @@ $("#profileForm").addEventListener("submit", async (event) => {
   user.address = $("#profileAddress").value.trim();
   user.email = $("#profileEmail").value.trim();
   user.ukara = $("#profileUkara").value.trim();
+  user.ukaraExpiry = $("#profileUkaraExpiry").value;
   if (photo) user.photo = photo;
 
   saveState();
