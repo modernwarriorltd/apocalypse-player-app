@@ -22,7 +22,8 @@ const defaultState = {
       ukara: "",
       ukaraExpiry: "",
       photo: "",
-      rifs: []
+      rifs: [],
+      rifWishlist: []
     },
     {
       id: "player-1",
@@ -37,6 +38,7 @@ const defaultState = {
       ukara: "UKARA-249",
       ukaraExpiry: "2026-12-31",
       photo: "",
+      rifWishlist: [],
       rifs: [
         {
           id: "rif-1",
@@ -144,6 +146,7 @@ function migrateState(loadedState) {
 
   loadedState.users.forEach((user) => {
     user.rifs ??= [];
+    user.rifWishlist ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
     user.ukaraExpiry ??= "";
@@ -508,7 +511,8 @@ function notificationSignature(viewName) {
   if (viewName === "admin") {
     const pendingUsers = state.users.filter((user) => user.role === "player" && !user.approved).map((user) => user.id);
     const messages = (state.contactMessages || []).filter((message) => !message.replied).map((message) => `${message.id}:${message.createdAt || ""}`);
-    return [...pendingUsers, ...messages].sort().join("|");
+    const wishlists = state.users.flatMap((user) => (user.rifWishlist || []).map((rif) => `${user.id}:${rif.id}:${rif.make}:${rif.model}`));
+    return [...pendingUsers, ...messages, ...wishlists].sort().join("|");
   }
 
   return "";
@@ -658,6 +662,7 @@ function render() {
   fillProfileForm(user);
   renderProfileCard(user);
   renderRifs(user);
+  renderRifWishlist(user);
   renderAnnouncements();
   renderCalendar();
   renderAdmin();
@@ -705,6 +710,32 @@ function renderRifs(user) {
     template.querySelector("p").textContent = `${rif.type} | Serial: ${rif.serial}`;
     template.querySelector(".edit-rif").addEventListener("click", () => editRif(rif.id));
     template.querySelector(".delete-rif").addEventListener("click", () => deleteRif(rif.id));
+    list.appendChild(template);
+  });
+}
+
+function renderRifWishlist(user) {
+  const list = $("#wishlistList");
+  if (!list) return;
+  list.innerHTML = "";
+
+  const wishlist = user.rifWishlist || [];
+  if (!wishlist.length) {
+    list.innerHTML = `<article class="event-card"><h2>No wishlist RIFs yet</h2><p>Add the RIFs you would like to own using the form above.</p></article>`;
+    return;
+  }
+
+  wishlist.forEach((rif) => {
+    const template = $("#wishlistCardTemplate").content.cloneNode(true);
+    const card = template.querySelector(".rif-card");
+    card.dataset.id = rif.id;
+    template.querySelector(".rif-image").innerHTML = rif.photo
+      ? `<img src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
+      : "Wishlist photo";
+    template.querySelector("h2").textContent = `${rif.make} ${rif.model}`;
+    template.querySelector("p").textContent = `${rif.type} | Serial: ${rif.serial || "Not set"}`;
+    template.querySelector(".edit-wishlist").addEventListener("click", () => editWishlistRif(rif.id));
+    template.querySelector(".delete-wishlist").addEventListener("click", () => deleteWishlistRif(rif.id));
     list.appendChild(template);
   });
 }
@@ -831,6 +862,41 @@ async function deleteRif(rifId) {
   renderRifs(user);
 }
 
+function editWishlistRif(rifId) {
+  const user = currentUser();
+  const rif = (user.rifWishlist || []).find((item) => item.id === rifId);
+  if (!rif) return;
+
+  $("#wishlistId").value = rif.id;
+  $("#wishlistMake").value = rif.make;
+  $("#wishlistModel").value = rif.model;
+  $("#wishlistType").value = rif.type;
+  $("#wishlistSerial").value = rif.serial || "";
+  $("#wishlistPhoto").value = "";
+  $("#wishlistMake").focus();
+}
+
+async function deleteWishlistRif(rifId) {
+  const user = currentUser();
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("wishlist/delete", { id: rifId });
+      applyServerData(result);
+      renderRifWishlist(currentUser());
+      renderAdminWishlist();
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  user.rifWishlist = (user.rifWishlist || []).filter((rif) => rif.id !== rifId);
+  saveState();
+  renderRifWishlist(user);
+  renderAdminWishlist();
+}
+
 function renderAnnouncements() {
   const feed = $("#announcementFeed");
   if (!feed) return;
@@ -852,8 +918,9 @@ function renderAnnouncements() {
           <div class="announcement-body">
             <p>${escapeHtml(announcement.text)}</p>
             <div class="announcement-actions">
-              <button class="small-button cheer-button ${hasCheered ? "has-cheered" : ""}" type="button" data-id="${announcement.id}">
-                Thumbs up ${announcement.cheers.length}
+              <button class="cheer-button ${hasCheered ? "has-cheered" : ""}" type="button" data-id="${announcement.id}" ${hasCheered ? "disabled" : ""} aria-label="Pew pew like">
+                <img src="assets/pew-like.png" alt="" aria-hidden="true" />
+                <span>${announcement.cheers.length}</span>
               </button>
             </div>
           </div>
@@ -871,32 +938,34 @@ async function cheerAnnouncement(announcementId) {
   const user = currentUser();
   const announcement = state.announcements.find((item) => item.id === announcementId);
   if (!user || !announcement) return;
+  if (announcement.cheers.includes(user.id)) return;
+
+  const previousCheers = [...announcement.cheers];
+  announcement.cheers.push(user.id);
+  renderAnnouncements();
+  renderAdminAnnouncements();
+  const button = document.querySelector(`.cheer-button[data-id="${announcementId}"]`);
+  button?.classList.add("is-firing");
+  window.setTimeout(() => button?.classList.remove("is-firing"), 550);
+  playPewPewSound();
 
   if (apiOnline) {
-    const wasCheered = announcement.cheers.includes(user.id);
     try {
       const result = await apiRequest("announcements/cheer", { id: announcementId });
       applyServerData(result);
-      if (!wasCheered) playPewPewSound();
       renderAnnouncements();
       renderAdminAnnouncements();
       return;
     } catch (error) {
+      announcement.cheers = previousCheers;
+      renderAnnouncements();
+      renderAdminAnnouncements();
       alert(error.message);
       return;
     }
   }
 
-  if (announcement.cheers.includes(user.id)) {
-    announcement.cheers = announcement.cheers.filter((userId) => userId !== user.id);
-  } else {
-    announcement.cheers.push(user.id);
-    playPewPewSound();
-  }
-
   saveState();
-  renderAnnouncements();
-  renderAdminAnnouncements();
 }
 
 function playPewPewSound() {
@@ -905,7 +974,7 @@ function playPewPewSound() {
 
   const audioContext = new AudioContext();
   const now = audioContext.currentTime;
-  const shots = [0, 0.18];
+  const shots = [0, 0.13, 0.27];
 
   shots.forEach((offset, index) => {
     const oscillator = audioContext.createOscillator();
@@ -913,22 +982,22 @@ function playPewPewSound() {
     const filter = audioContext.createBiquadFilter();
     const start = now + offset;
 
-    oscillator.type = "sawtooth";
-    oscillator.frequency.setValueAtTime(index === 0 ? 980 : 760, start);
-    oscillator.frequency.exponentialRampToValueAtTime(index === 0 ? 170 : 130, start + 0.14);
+    oscillator.type = index === 1 ? "square" : "sawtooth";
+    oscillator.frequency.setValueAtTime(index === 0 ? 1400 : index === 1 ? 980 : 1180, start);
+    oscillator.frequency.exponentialRampToValueAtTime(index === 0 ? 120 : 150, start + 0.12);
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(index === 0 ? 1200 : 950, start);
-    filter.Q.setValueAtTime(8, start);
+    filter.frequency.setValueAtTime(index === 0 ? 1600 : 1200, start);
+    filter.Q.setValueAtTime(10, start);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+    gain.gain.exponentialRampToValueAtTime(0.32, start + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
     oscillator.connect(filter).connect(gain).connect(audioContext.destination);
     oscillator.start(start);
-    oscillator.stop(start + 0.17);
+    oscillator.stop(start + 0.15);
   });
 
   shots.forEach((offset) => {
-    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.05, audioContext.sampleRate);
+    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.07, audioContext.sampleRate);
     const noise = noiseBuffer.getChannelData(0);
     for (let index = 0; index < noise.length; index += 1) {
       noise[index] = Math.random() * 2 - 1;
@@ -936,11 +1005,11 @@ function playPewPewSound() {
     const noiseSource = audioContext.createBufferSource();
     const noiseGain = audioContext.createGain();
     noiseSource.buffer = noiseBuffer;
-    noiseGain.gain.setValueAtTime(0.08, now + offset);
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.05);
+    noiseGain.gain.setValueAtTime(0.16, now + offset);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.07);
     noiseSource.connect(noiseGain).connect(audioContext.destination);
     noiseSource.start(now + offset);
-    noiseSource.stop(now + offset + 0.05);
+    noiseSource.stop(now + offset + 0.07);
   });
 
   window.setTimeout(() => audioContext.close(), 900);
@@ -1099,6 +1168,46 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
   $$(".delete-event").forEach((button) => button.addEventListener("click", () => deleteEvent(button.dataset.id)));
   renderAdminAnnouncements();
   renderAdminContactMessages();
+  renderAdminWishlist();
+}
+
+function renderAdminWishlist() {
+  const list = $("#adminWishlist");
+  if (!list) return;
+
+  const wishlistItems = state.users.flatMap((player) =>
+    (player.rifWishlist || []).map((rif) => ({
+      ...rif,
+      playerName: player.name,
+      playerEmail: player.email,
+      playerNumber: player.playerNumber
+    }))
+  );
+
+  if (!wishlistItems.length) {
+    list.innerHTML = `<article class="user-row"><div><h3>No wishlist RIFs yet</h3><p>Player wishlist items will appear here.</p></div></article>`;
+    return;
+  }
+
+  list.innerHTML = wishlistItems
+    .sort((a, b) => `${a.make} ${a.model}`.localeCompare(`${b.make} ${b.model}`))
+    .map(
+      (rif) => `
+        <article class="user-row wishlist-row">
+          ${
+            rif.photo
+              ? `<img class="wishlist-admin-thumb" src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
+              : `<div class="wishlist-admin-thumb">RIF</div>`
+          }
+          <div>
+            <h3>${escapeHtml(rif.make)} ${escapeHtml(rif.model)}</h3>
+            <p>${escapeHtml(rif.type)} | Serial: ${escapeHtml(rif.serial || "Not set")}</p>
+            <p>${escapeHtml(rif.playerName)} | ${escapeHtml(rif.playerNumber || "No player number")} | ${escapeHtml(rif.playerEmail)}</p>
+          </div>
+        </article>
+      `
+    )
+    .join("");
 }
 
 function renderAdminAnnouncements() {
@@ -1480,7 +1589,8 @@ $("#registerForm").addEventListener("submit", async (event) => {
     ukara: "",
     ukaraExpiry: "",
     photo: "",
-    rifs: []
+    rifs: [],
+    rifWishlist: []
   };
 
   state.users.push(user);
@@ -1582,6 +1692,57 @@ $("#rifForm").addEventListener("submit", async (event) => {
   renderRifs(user);
   submitButton.disabled = false;
   submitButton.textContent = "Save RIF";
+});
+
+$("#wishlistForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = event.submitter;
+  submitButton.disabled = true;
+  submitButton.textContent = "Saving...";
+  const user = currentUser();
+  user.rifWishlist ??= [];
+  const photo = await readImage($("#wishlistPhoto"), { maxSize: 900, quality: 0.7 });
+  const wishlistId = $("#wishlistId").value;
+  const existingRif = user.rifWishlist.find((rif) => rif.id === wishlistId);
+  const rifData = {
+    id: wishlistId || makeId("wishlist"),
+    make: $("#wishlistMake").value.trim(),
+    model: $("#wishlistModel").value.trim(),
+    type: $("#wishlistType").value,
+    serial: $("#wishlistSerial").value.trim(),
+    photo: photo || existingRif?.photo || ""
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("wishlist/save", rifData);
+      applyServerData(result);
+      $("#wishlistForm").reset();
+      $("#wishlistId").value = "";
+      renderRifWishlist(currentUser());
+      renderAdminWishlist();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Save wishlist RIF";
+    }
+    return;
+  }
+
+  if (existingRif) {
+    Object.assign(existingRif, rifData);
+  } else {
+    user.rifWishlist.push(rifData);
+  }
+
+  saveState();
+  $("#wishlistForm").reset();
+  $("#wishlistId").value = "";
+  renderRifWishlist(user);
+  renderAdminWishlist();
+  submitButton.disabled = false;
+  submitButton.textContent = "Save wishlist RIF";
 });
 
 $("#contactForm").addEventListener("submit", async (event) => {

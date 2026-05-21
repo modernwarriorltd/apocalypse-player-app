@@ -195,6 +195,48 @@
             </form>
 
             <div class="rif-list" id="rifList"></div>
+
+            <div class="section-heading">
+              <p class="eyebrow">RIF Wishlist</p>
+              <h2>RIFs you want to own</h2>
+            </div>
+
+            <form class="form-panel rif-form" id="wishlistForm">
+              <input type="hidden" id="wishlistId" />
+              <label>
+                Make
+                <input id="wishlistMake" type="text" required />
+              </label>
+              <label>
+                Model
+                <input id="wishlistModel" type="text" required />
+              </label>
+              <label>
+                Type
+                <select id="wishlistType" required>
+                  <option value="">Choose type</option>
+                  <option>AEG</option>
+                  <option>Gas</option>
+                  <option>Pistol</option>
+                  <option>Sniper</option>
+                  <option>DMR</option>
+                  <option>Rifle</option>
+                  <option>Shotgun</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                Serial number
+                <input id="wishlistSerial" type="text" />
+              </label>
+              <label>
+                RIF picture
+                <input id="wishlistPhoto" type="file" accept="image/*" />
+              </label>
+              <button class="primary-action" type="submit">Save wishlist RIF</button>
+            </form>
+
+            <div class="rif-list" id="wishlistList"></div>
           </section>
 
           <section class="view hidden" id="announcementsView">
@@ -502,6 +544,11 @@
                 <h2>Contact messages</h2>
                 <div class="admin-contact-messages" id="adminContactMessages"></div>
               </div>
+
+              <div class="admin-panel wishlist-admin">
+                <h2>RIF wishlists</h2>
+                <div class="admin-wishlist" id="adminWishlist"></div>
+              </div>
             </div>
           </section>
         </section>
@@ -517,6 +564,20 @@
           <div class="card-actions">
             <button class="small-button edit-rif" type="button">Edit</button>
             <button class="small-button danger delete-rif" type="button">Delete</button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <template id="wishlistCardTemplate">
+      <article class="rif-card">
+        <div class="rif-image"></div>
+        <div>
+          <h2></h2>
+          <p></p>
+          <div class="card-actions">
+            <button class="small-button edit-wishlist" type="button">Edit</button>
+            <button class="small-button danger delete-wishlist" type="button">Delete</button>
           </div>
         </div>
       </article>

@@ -320,6 +320,15 @@ textarea {
   align-items: start;
 }
 
+.section-heading {
+  margin: 26px 0 14px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
 .id-card {
   overflow: hidden;
 }
@@ -642,13 +651,64 @@ textarea {
 }
 
 .cheer-button {
-  min-width: 130px;
+  min-height: 58px;
+  border: 1px solid #42503d;
+  border-radius: 8px;
+  background: #20271f;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-weight: 900;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.cheer-button img {
+  width: 62px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.cheer-button span {
+  min-width: 1.5rem;
+  text-align: center;
 }
 
 .cheer-button.has-cheered {
   background: rgba(200, 50, 43, 0.22);
   border-color: #ff5d55;
   color: #ffffff;
+  cursor: default;
+}
+
+.cheer-button.is-firing img {
+  animation: pew-shake 420ms ease;
+}
+
+@keyframes pew-shake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  18% {
+    transform: translateX(-8px) rotate(-4deg);
+  }
+  36% {
+    transform: translateX(7px) rotate(3deg);
+  }
+  54% {
+    transform: translateX(-5px) rotate(-2deg);
+  }
+  72% {
+    transform: translateX(4px) rotate(2deg);
+  }
 }
 
 .content-panel,
@@ -807,9 +867,32 @@ textarea {
 
 .events-admin,
 .announcements-admin,
-.contact-admin {
+.contact-admin,
+.wishlist-admin {
   grid-column: 1 / -1;
   grid-template-columns: 1fr 1fr;
+}
+
+.wishlist-row {
+  grid-template-columns: 72px 1fr;
+}
+
+.wishlist-admin-thumb {
+  width: 72px;
+  height: 56px;
+  border-radius: 6px;
+  background: #10140f;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+img.wishlist-admin-thumb {
+  object-fit: contain;
+  display: block;
 }
 
 .events-admin form,
@@ -857,6 +940,7 @@ textarea {
   .rif-form,
   .rif-card,
   .user-row,
+  .wishlist-row,
   .social-links {
     grid-template-columns: 1fr;
   }
