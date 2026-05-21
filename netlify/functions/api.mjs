@@ -196,6 +196,7 @@ function migrateState(state) {
     user.rifs ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
+    user.ukaraExpiry ??= "";
     if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
       user.role = "admin";
       user.approved = true;
@@ -353,7 +354,8 @@ async function updateProfile(state, sessionUser, body) {
     phone: String(body.phone || "").trim(),
     address: String(body.address || "").trim(),
     email: String(body.email || "").trim().toLowerCase(),
-    ukara: String(body.ukara || "").trim()
+    ukara: String(body.ukara || "").trim(),
+    ukaraExpiry: body.ukaraExpiry || ""
   });
   if (photo) user.photo = photo;
 
