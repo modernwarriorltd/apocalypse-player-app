@@ -79,6 +79,8 @@ export default async (request) => {
     if (action === "profile/update") return updateProfile(state, user, body);
     if (action === "rifs/save") return saveRif(state, user, body);
     if (action === "rifs/delete") return deleteRif(state, user, body);
+    if (action === "wishlist/save") return saveWishlistRif(state, user, body);
+    if (action === "wishlist/delete") return deleteWishlistRif(state, user, body);
     if (action === "announcements/cheer") return cheerAnnouncement(state, user, body);
     if (action === "contact/submit") return submitContactMessage(state, user, body);
 
@@ -173,6 +175,13 @@ async function externalizeStateImages(state) {
         changed = true;
       }
     }
+
+    for (const rif of user.rifWishlist || []) {
+      if (isDataImage(rif.photo)) {
+        rif.photo = await saveImage(rif.photo, "wishlist");
+        changed = true;
+      }
+    }
   }
 
   for (const announcement of state.announcements) {
@@ -194,6 +203,7 @@ function migrateState(state) {
 
   state.users.forEach((user) => {
     user.rifs ??= [];
+    user.rifWishlist ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
     user.ukaraExpiry ??= "";
@@ -289,7 +299,8 @@ async function register(state, body) {
     ukara: "",
     ukaraExpiry: "",
     photo: "",
-    rifs: []
+    rifs: [],
+    rifWishlist: []
   };
 
   state.users.push(user);
@@ -390,13 +401,39 @@ async function deleteRif(state, sessionUser, body) {
   return json(200, { user: safeUser(user), data: publicData(state) });
 }
 
+async function saveWishlistRif(state, sessionUser, body) {
+  const user = state.users.find((item) => item.id === sessionUser.id);
+  user.rifWishlist ??= [];
+  const existing = user.rifWishlist.find((rif) => rif.id === body.id);
+  const photo = await saveImage(body.photo, "wishlist");
+  const rif = {
+    id: body.id || makeId("wishlist"),
+    make: String(body.make || "").trim(),
+    model: String(body.model || "").trim(),
+    type: String(body.type || "").trim(),
+    serial: String(body.serial || "").trim(),
+    photo: photo || existing?.photo || ""
+  };
+
+  if (existing) Object.assign(existing, rif);
+  else user.rifWishlist.push(rif);
+
+  await saveState(state);
+  return json(200, { user: safeUser(user), data: publicData(state) });
+}
+
+async function deleteWishlistRif(state, sessionUser, body) {
+  const user = state.users.find((item) => item.id === sessionUser.id);
+  user.rifWishlist = (user.rifWishlist || []).filter((rif) => rif.id !== body.id);
+  await saveState(state);
+  return json(200, { user: safeUser(user), data: publicData(state) });
+}
+
 async function cheerAnnouncement(state, user, body) {
   const announcement = state.announcements.find((item) => item.id === body.id);
   if (!announcement) return json(404, { error: "Announcement not found." });
 
-  if (announcement.cheers.includes(user.id)) {
-    announcement.cheers = announcement.cheers.filter((userId) => userId !== user.id);
-  } else {
+  if (!announcement.cheers.includes(user.id)) {
     announcement.cheers.push(user.id);
   }
 
