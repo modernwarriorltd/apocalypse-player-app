@@ -3,6 +3,8 @@ const PLAYER_PREFIX = "APOC-PLAYER";
 const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const SESSION_KEY = "apocalypse249SessionToken";
 const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
+const TAB_SEEN_KEY = "apocalypse249TabSeen";
+const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 
 const defaultState = {
   currentUserId: null,
@@ -84,7 +86,6 @@ let mapState = {
   x: 0,
   y: 0,
   rotation: 0,
-  tilt: 0,
   markersLocked: false,
   markerMode: "red",
   markers: loadMapMarkers(),
@@ -123,6 +124,18 @@ function saveMapMarkers() {
   localStorage.setItem(MAP_MARKERS_KEY, JSON.stringify(mapState.markers));
 }
 
+function loadTabSeen() {
+  try {
+    return JSON.parse(localStorage.getItem(TAB_SEEN_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveTabSeen(seen) {
+  localStorage.setItem(TAB_SEEN_KEY, JSON.stringify(seen));
+}
+
 function migrateState(loadedState) {
   loadedState.users ??= [];
   loadedState.events ??= [];
@@ -133,6 +146,7 @@ function migrateState(loadedState) {
     user.rifs ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
+    user.ukaraExpiry ??= "";
 
     if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
       user.role = "admin";
@@ -157,6 +171,7 @@ function saveState() {
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderTabNotifications();
   } catch (error) {
     localStorage.removeItem(STORAGE_KEY);
     alert("Local browser storage was full, so the local demo cache has been cleared.");
@@ -249,6 +264,7 @@ function applyServerData(result) {
   }
 
   saveState();
+  renderTabNotifications();
 }
 
 async function bootstrap() {
@@ -474,6 +490,76 @@ function repeatLabel(event) {
   return `Repeats ${label}${until}`;
 }
 
+function notificationSignature(viewName) {
+  if (viewName === "announcements") {
+    return [...state.announcements]
+      .map((announcement) => `${announcement.id}:${announcement.createdAt || ""}`)
+      .sort()
+      .join("|");
+  }
+
+  if (viewName === "calendar") {
+    return [...state.events]
+      .map((event) => `${event.id}:${event.date || ""}:${event.title || ""}:${event.repeats || ""}:${event.repeatUntil || ""}`)
+      .sort()
+      .join("|");
+  }
+
+  if (viewName === "admin") {
+    const pendingUsers = state.users.filter((user) => user.role === "player" && !user.approved).map((user) => user.id);
+    const messages = (state.contactMessages || []).filter((message) => !message.replied).map((message) => `${message.id}:${message.createdAt || ""}`);
+    return [...pendingUsers, ...messages].sort().join("|");
+  }
+
+  return "";
+}
+
+function markTabSeen(viewName) {
+  const signature = notificationSignature(viewName);
+  if (!signature) return;
+  const seen = loadTabSeen();
+  seen[viewName] = signature;
+  saveTabSeen(seen);
+  renderTabNotifications();
+}
+
+function renderTabNotifications() {
+  const user = currentUser();
+  const seen = loadTabSeen();
+  let changed = false;
+
+  $$(".tab").forEach((tab) => {
+    const viewName = tab.dataset.view;
+    const signature = notificationSignature(viewName);
+    const canShow = user && signature && viewName !== "profile" && (viewName !== "admin" || user.role === "admin");
+    if (user && viewName !== "profile" && !Object.prototype.hasOwnProperty.call(seen, viewName)) {
+      seen[viewName] = signature;
+      changed = true;
+    }
+    tab.classList.toggle("has-notification", Boolean(canShow && seen[viewName] !== signature && !tab.classList.contains("is-active")));
+  });
+
+  if (changed) saveTabSeen(seen);
+}
+
+function checkUkaraExpiryReminder(user) {
+  if (!user || !user.ukaraExpiry) return;
+
+  const expiry = toDate(user.ukaraExpiry);
+  const today = toDate(toDateKey(new Date()));
+  const daysUntilExpiry = Math.ceil((expiry - today) / 86400000);
+  if (daysUntilExpiry > 7) return;
+
+  const reminderId = `${user.id}:${user.ukaraExpiry}:${toDateKey(today)}`;
+  if (localStorage.getItem(UKARA_REMINDER_KEY) === reminderId) return;
+
+  localStorage.setItem(UKARA_REMINDER_KEY, reminderId);
+  const message = daysUntilExpiry < 0
+    ? "Your UKARA expiry date has passed. Please update your UKARA expiry date on your ID page."
+    : `Your UKARA expiry date is ${daysUntilExpiry === 0 ? "today" : `in ${daysUntilExpiry} day${daysUntilExpiry === 1 ? "" : "s"}`}. Please update it if you have renewed.`;
+  window.setTimeout(() => alert(message), 350);
+}
+
 function setView(viewName) {
   $$(".view").forEach((view) => view.classList.add("hidden"));
   $(`#${viewName}View`)?.classList.remove("hidden");
@@ -481,6 +567,8 @@ function setView(viewName) {
   $$(".tab").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.view === viewName);
   });
+
+  markTabSeen(viewName);
 
   if (viewName === "admin") {
     refreshSharedData().then(() => renderAdmin());
@@ -500,6 +588,8 @@ function setView(viewName) {
   if (viewName === "siteDetails") {
     window.requestAnimationFrame(fitMapToStage);
   }
+
+  renderTabNotifications();
 }
 
 function startAdminAutoRefresh() {
@@ -571,6 +661,8 @@ function render() {
   renderAnnouncements();
   renderCalendar();
   renderAdmin();
+  renderTabNotifications();
+  checkUkaraExpiryReminder(user);
 }
 
 function fillProfileForm(user) {
@@ -621,7 +713,7 @@ function renderMap() {
   const content = $("#mapContent");
   if (!content) return;
 
-  content.style.transform = `translate(${mapState.x}px, ${mapState.y}px) perspective(900px) rotateX(${mapState.tilt}deg) rotate(${mapState.rotation}deg) scale(${mapState.scale})`;
+  content.style.transform = `translate(${mapState.x}px, ${mapState.y}px) rotate(${mapState.rotation}deg) scale(${mapState.scale})`;
 
   $$(".marker-mode").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.markerMode === mapState.markerMode);
@@ -663,7 +755,6 @@ function fitMapToStage() {
   mapState.x = Math.max(0, (stageWidth - contentWidth * scale) / 2);
   mapState.y = 14;
   mapState.rotation = 0;
-  mapState.tilt = 0;
   renderMap();
 }
 
@@ -696,16 +787,6 @@ function zoomMapAt(clientX, clientY, nextScale) {
   mapState.x = pointX - ((pointX - mapState.x) / oldScale) * scale;
   mapState.y = pointY - ((pointY - mapState.y) / oldScale) * scale;
   mapState.scale = scale;
-  renderMap();
-}
-
-function adjustMapRotation(amount) {
-  mapState.rotation = (mapState.rotation + amount) % 360;
-  renderMap();
-}
-
-function adjustMapTilt(amount) {
-  mapState.tilt = Math.min(55, Math.max(-55, mapState.tilt + amount));
   renderMap();
 }
 
@@ -1674,12 +1755,12 @@ $("#refreshAdminData").addEventListener("click", async () => {
 
 $("#prevMonth").addEventListener("click", () => {
   calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
-  renderMiniCalendar();
+  renderCalendar();
 });
 
 $("#nextMonth").addEventListener("click", () => {
   calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
-  renderMiniCalendar();
+  renderCalendar();
 });
 
 $$(".marker-mode").forEach((button) => {
@@ -1733,14 +1814,11 @@ $("#mapStage").addEventListener("pointerdown", (event) => {
 
   if (mapState.pointers.size === 2) {
     const pointers = Array.from(mapState.pointers.values());
-    const midpointY = (pointers[0].clientY + pointers[1].clientY) / 2;
     mapState.lastPinch = {
       distance: pointerDistance(pointers[0], pointers[1]),
       angle: pointerAngle(pointers[0], pointers[1]),
-      midpointY,
       scale: mapState.scale,
-      rotation: mapState.rotation,
-      tilt: mapState.tilt
+      rotation: mapState.rotation
     };
   }
 });
@@ -1764,7 +1842,6 @@ $("#mapStage").addEventListener("pointermove", (event) => {
     };
     zoomMapAt(midpoint.x, midpoint.y, mapState.lastPinch.scale * (distance / mapState.lastPinch.distance));
     mapState.rotation = mapState.lastPinch.rotation + angle - mapState.lastPinch.angle;
-    mapState.tilt = Math.min(55, Math.max(-55, mapState.lastPinch.tilt + (midpoint.y - mapState.lastPinch.midpointY) / 5));
     renderMap();
     return;
   }
