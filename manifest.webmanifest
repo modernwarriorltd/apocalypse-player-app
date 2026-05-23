@@ -1,7 +1,8 @@
 {
   "name": "Apocalypse 249 Player App",
-  "short_name": "APOC 249",
-  "start_url": "/",
+  "short_name": "APOC 249 v2",
+  "id": "/?app=apoc-249-v2",
+  "start_url": "/?app=apoc-249-v2",
   "display": "standalone",
   "background_color": "#080a08",
   "theme_color": "#c8322b",
