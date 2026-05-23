@@ -5,6 +5,7 @@ const SESSION_KEY = "apocalypse249SessionToken";
 const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
+const BOOKING_URL = "https://apocalypse249.co.uk/v2/";
 
 const defaultState = {
   currentUserId: null,
@@ -61,13 +62,15 @@ const defaultState = {
       id: "event-1",
       title: "Open Skirmish Day",
       date: "2026-06-07",
-      notes: "Standard walk-on day. Booking required."
+      notes: "Standard walk-on day. Booking required.",
+      bookingUrl: BOOKING_URL
     },
     {
       id: "event-2",
       title: "MilSim Lite",
       date: "2026-06-21",
-      notes: "Team objectives, medic rules and limited ammo."
+      notes: "Team objectives, medic rules and limited ammo.",
+      bookingUrl: BOOKING_URL
     }
   ],
   announcements: [
@@ -149,6 +152,10 @@ function migrateState(loadedState) {
   loadedState.events ??= [];
   loadedState.announcements ??= [];
   loadedState.contactMessages ??= [];
+
+  loadedState.events.forEach((event) => {
+    event.bookingUrl = BOOKING_URL;
+  });
 
   loadedState.users.forEach((user) => {
     user.rifs ??= [];
@@ -1506,7 +1513,7 @@ function fillEvent(eventId) {
   $("#eventDate").value = event.date;
   $("#eventRepeats").value = event.repeats || "none";
   $("#eventRepeatUntil").value = event.repeatUntil || "";
-  $("#eventBookingUrl").value = event.bookingUrl || "https://apocalypse249.co.uk/v2/";
+  $("#eventBookingUrl").value = BOOKING_URL;
   $("#eventNotes").value = event.notes || "";
   $("#eventTitle").focus();
 }
@@ -1917,7 +1924,7 @@ $("#eventForm").addEventListener("submit", async (event) => {
     notes: $("#eventNotes").value.trim(),
     repeats: $("#eventRepeats").value,
     repeatUntil: $("#eventRepeatUntil").value,
-    bookingUrl: $("#eventBookingUrl").value.trim() || "https://apocalypse249.co.uk/v2/"
+    bookingUrl: BOOKING_URL
   };
 
   if (apiOnline) {
