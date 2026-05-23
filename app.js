@@ -71,6 +71,7 @@ const defaultState = {
       text: "Welcome to the Apocalypse 249 player app. Keep an eye here for site updates, game day news and kit reminders.",
       image: "",
       createdAt: "2026-05-18T12:00:00.000Z",
+      scheduledAt: "",
       cheers: []
     }
   ],
@@ -160,6 +161,7 @@ function migrateState(loadedState) {
   loadedState.announcements.forEach((announcement) => {
     announcement.cheers ??= [];
     announcement.createdAt ??= new Date().toISOString();
+    announcement.scheduledAt ??= "";
   });
 
   assignMissingPlayerNumbers(loadedState);
@@ -493,10 +495,40 @@ function repeatLabel(event) {
   return `Repeats ${label}${until}`;
 }
 
+function isAnnouncementLive(announcement) {
+  return !announcement.scheduledAt || new Date(announcement.scheduledAt) <= new Date();
+}
+
+function visibleAnnouncements() {
+  return state.announcements.filter(isAnnouncementLive);
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function fromDateTimeLocalValue(value) {
+  return value ? new Date(value).toISOString() : "";
+}
+
+function formatDateTime(value) {
+  if (!value) return "Posts immediately";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Posts immediately";
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
+}
+
 function notificationSignature(viewName) {
   if (viewName === "announcements") {
-    return [...state.announcements]
-      .map((announcement) => `${announcement.id}:${announcement.createdAt || ""}`)
+    return visibleAnnouncements()
+      .map((announcement) => `${announcement.id}:${announcement.createdAt || ""}:${announcement.scheduledAt || ""}`)
       .sort()
       .join("|");
   }
@@ -531,6 +563,7 @@ function renderTabNotifications() {
   const user = currentUser();
   const seen = loadTabSeen();
   let changed = false;
+  let badgeCount = 0;
 
   $$(".tab").forEach((tab) => {
     const viewName = tab.dataset.view;
@@ -540,10 +573,13 @@ function renderTabNotifications() {
       seen[viewName] = signature;
       changed = true;
     }
-    tab.classList.toggle("has-notification", Boolean(canShow && seen[viewName] !== signature && !tab.classList.contains("is-active")));
+    const hasUpdate = Boolean(canShow && seen[viewName] !== signature && !tab.classList.contains("is-active"));
+    tab.classList.toggle("has-notification", hasUpdate);
+    if (hasUpdate) badgeCount += 1;
   });
 
   if (changed) saveTabSeen(seen);
+  updateAppBadge(badgeCount);
 }
 
 function checkUkaraExpiryReminder(user) {
@@ -625,6 +661,13 @@ async function refreshSharedData() {
   } catch (error) {
     alert(error.message);
     return false;
+  }
+}
+
+function updateAppBadge(count) {
+  if ("setAppBadge" in navigator && "clearAppBadge" in navigator) {
+    const action = count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
+    Promise.resolve(action).catch(() => {});
   }
 }
 
@@ -902,7 +945,7 @@ function renderAnnouncements() {
   if (!feed) return;
 
   const user = currentUser();
-  const announcements = [...state.announcements].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const announcements = visibleAnnouncements().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   if (!announcements.length) {
     feed.innerHTML = `<article class="announcement-card"><h2>No announcements yet</h2><p>The admin team can add updates from the backend.</p></article>`;
@@ -1226,7 +1269,7 @@ function renderAdminAnnouncements() {
         <article class="user-row">
           <div>
             <h3>${escapeHtml(announcement.text.slice(0, 58))}${announcement.text.length > 58 ? "..." : ""}</h3>
-            <p>${announcement.cheers.length} thumbs up</p>
+            <p>${announcement.cheers.length} likes | ${isAnnouncementLive(announcement) ? "Live" : `Scheduled for ${formatDateTime(announcement.scheduledAt)}`}</p>
           </div>
           <div class="card-actions">
             <button class="small-button edit-announcement" type="button" data-id="${announcement.id}">Edit</button>
@@ -1251,6 +1294,7 @@ function fillAnnouncement(announcementId) {
 
   $("#announcementId").value = announcement.id;
   $("#announcementText").value = announcement.text;
+  $("#announcementScheduledAt").value = toDateTimeLocalValue(announcement.scheduledAt);
   $("#announcementImage").value = "";
   $("#announcementText").focus();
 }
@@ -1874,6 +1918,7 @@ $("#announcementForm").addEventListener("submit", async (event) => {
     text: $("#announcementText").value.trim(),
     image: image || existingAnnouncement?.image || "",
     createdAt: existingAnnouncement?.createdAt || new Date().toISOString(),
+    scheduledAt: fromDateTimeLocalValue($("#announcementScheduledAt").value),
     cheers: existingAnnouncement?.cheers || []
   };
 
@@ -1883,6 +1928,7 @@ $("#announcementForm").addEventListener("submit", async (event) => {
       applyServerData(result);
       $("#announcementForm").reset();
       $("#announcementId").value = "";
+      $("#announcementScheduledAt").value = "";
       renderAnnouncements();
       renderAdminAnnouncements();
     } catch (error) {
@@ -1900,6 +1946,7 @@ $("#announcementForm").addEventListener("submit", async (event) => {
   saveState();
   $("#announcementForm").reset();
   $("#announcementId").value = "";
+  $("#announcementScheduledAt").value = "";
   renderAnnouncements();
   renderAdminAnnouncements();
 });

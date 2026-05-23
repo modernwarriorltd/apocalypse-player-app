@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apocalypse 249 Player App</title>
-    <link rel="stylesheet" href="styles.css?v=20260520-notifications" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css?v=20260523-scheduled-announcements" />
   </head>
   <body>
     <div class="app-shell">
@@ -532,6 +533,10 @@
                     <input id="announcementImage" type="file" accept="image/*" />
                   </label>
                   <label>
+                    Schedule post
+                    <input id="announcementScheduledAt" type="datetime-local" />
+                  </label>
+                  <label>
                     Post text
                     <textarea id="announcementText" rows="4" required></textarea>
                   </label>
@@ -583,6 +588,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=20260520-notifications"></script>
+    <script src="app.js?v=20260523-scheduled-announcements"></script>
   </body>
 </html>

@@ -1,0 +1,16 @@
+{
+  "name": "Apocalypse 249 Player App",
+  "short_name": "APOC 249",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080a08",
+  "theme_color": "#c8322b",
+  "icons": [
+    {
+      "src": "assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
