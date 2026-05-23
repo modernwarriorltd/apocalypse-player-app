@@ -6,7 +6,6 @@ const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/";
-const BOOKING_REDIRECT_URL = "booking.html";
 
 const defaultState = {
   currentUserId: null,
@@ -1115,7 +1114,7 @@ function renderEvents() {
               <p><strong>${formatDate(event.occurrenceDate)}</strong></p>
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
-              <a class="small-button event-booking-link" href="${BOOKING_REDIRECT_URL}" data-booking-link>Book this event</a>
+              <button class="small-button event-booking-link" type="button" data-booking-link>Book this event</button>
             </article>
           `
         )
@@ -2047,8 +2046,15 @@ document.addEventListener("click", (event) => {
   const bookingLink = event.target.closest("[data-booking-link]");
   if (!bookingLink) return;
   event.preventDefault();
-  window.location.href = `${BOOKING_REDIRECT_URL}?t=${Date.now()}`;
+  openBookingSite();
 });
+
+function openBookingSite() {
+  const openedWindow = window.open(BOOKING_URL, "_blank", "noopener,noreferrer");
+  if (!openedWindow) {
+    window.location.assign(BOOKING_URL);
+  }
+}
 
 $("#mapStage").addEventListener("wheel", (event) => {
   event.preventDefault();
