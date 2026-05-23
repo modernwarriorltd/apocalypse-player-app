@@ -6,6 +6,7 @@ const IMAGE_STORE_NAME = "apocalypse-249-player-images";
 const STATE_KEY = "state";
 const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const PLAYER_PREFIX = "APOC-PLAYER";
+const BOOKING_URL = "https://apocalypse249.co.uk/v2/";
 
 const json = (statusCode, body) =>
   new Response(JSON.stringify(body), {
@@ -26,7 +27,7 @@ const defaultState = () => ({
       notes: "Standard walk-on day. Booking required.",
       repeats: "none",
       repeatUntil: "",
-      bookingUrl: "https://apocalypse249.co.uk/v2/"
+      bookingUrl: BOOKING_URL
     },
     {
       id: "event-2",
@@ -35,7 +36,7 @@ const defaultState = () => ({
       notes: "Team objectives, medic rules and limited ammo.",
       repeats: "none",
       repeatUntil: "",
-      bookingUrl: "https://apocalypse249.co.uk/v2/"
+      bookingUrl: BOOKING_URL
     }
   ],
   announcements: [
@@ -202,8 +203,19 @@ function migrateState(state) {
   state.sessions ??= {};
   state.contactMessages ??= [];
 
+  state.events.forEach((event) => {
+    event.bookingUrl = BOOKING_URL;
+  });
+
   state.users.forEach((user) => {
     user.rifs ??= [];
+    user.rifs.forEach((rif) => {
+      rif.fps ??= "";
+      rif.joules ??= "";
+      rif.bbWeight ??= "";
+      rif.zeroRange ??= "";
+      rif.zeroUnit ??= "metres";
+    });
     user.rifWishlist ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
@@ -386,6 +398,11 @@ async function saveRif(state, sessionUser, body) {
     model: String(body.model || "").trim(),
     type: String(body.type || "").trim(),
     serial: String(body.serial || "").trim(),
+    fps: String(body.fps || "").trim(),
+    joules: String(body.joules || "").trim(),
+    bbWeight: String(body.bbWeight || "").trim(),
+    zeroRange: String(body.zeroRange || "").trim(),
+    zeroUnit: String(body.zeroUnit || "metres").trim(),
     photo: photo || existing?.photo || ""
   };
 
@@ -512,7 +529,7 @@ async function saveEvent(state, body) {
     notes: String(body.notes || "").trim(),
     repeats: body.repeats || "none",
     repeatUntil: body.repeatUntil || "",
-    bookingUrl: body.bookingUrl || "https://apocalypse249.co.uk/v2/"
+    bookingUrl: BOOKING_URL
   };
   if (existing) Object.assign(existing, event);
   else state.events.push(event);
