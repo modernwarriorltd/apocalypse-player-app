@@ -402,7 +402,7 @@ textarea {
 }
 
 .rif-form {
-  grid-template-columns: repeat(5, 1fr) auto;
+  grid-template-columns: repeat(5, minmax(130px, 1fr)) auto;
   align-items: end;
   margin-bottom: 18px;
 }

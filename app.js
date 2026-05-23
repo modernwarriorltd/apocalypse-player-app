@@ -46,6 +46,11 @@ const defaultState = {
           model: "SA-E12",
           type: "AEG",
           serial: "SA249-DEMO",
+          fps: "",
+          joules: "",
+          bbWeight: "",
+          zeroRange: "",
+          zeroUnit: "metres",
           photo: ""
         }
       ]
@@ -147,6 +152,13 @@ function migrateState(loadedState) {
 
   loadedState.users.forEach((user) => {
     user.rifs ??= [];
+    user.rifs.forEach((rif) => {
+      rif.fps ??= "";
+      rif.joules ??= "";
+      rif.bbWeight ??= "";
+      rif.zeroRange ??= "";
+      rif.zeroUnit ??= "metres";
+    });
     user.rifWishlist ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
@@ -750,11 +762,30 @@ function renderRifs(user) {
       ? `<img src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
       : "RIF photo";
     template.querySelector("h2").textContent = `${rif.make} ${rif.model}`;
-    template.querySelector("p").textContent = `${rif.type} | Serial: ${rif.serial}`;
+    const chronoParts = [
+      rif.fps ? `${rif.fps} FPS` : "",
+      rif.joules ? `${rif.joules} J` : "",
+      rif.bbWeight ? `${rif.bbWeight} BB` : "",
+      rif.zeroRange ? `Zero: ${rif.zeroRange} ${zeroUnitLabel(rif.zeroUnit)}` : ""
+    ].filter(Boolean);
+    template.querySelector("p").innerHTML = `
+      ${escapeHtml(rif.type)} | Serial: ${escapeHtml(rif.serial)}
+      ${chronoParts.length ? `<br>${escapeHtml(chronoParts.join(" | "))}` : ""}
+    `;
     template.querySelector(".edit-rif").addEventListener("click", () => editRif(rif.id));
     template.querySelector(".delete-rif").addEventListener("click", () => deleteRif(rif.id));
     list.appendChild(template);
   });
+}
+
+function zeroUnitLabel(unit) {
+  const labels = {
+    metres: "m",
+    yards: "yd",
+    feet: "ft",
+    "feet-inches": "ft/in"
+  };
+  return labels[unit] || "m";
 }
 
 function renderRifWishlist(user) {
@@ -882,6 +913,11 @@ function editRif(rifId) {
   $("#rifModel").value = rif.model;
   $("#rifType").value = rif.type;
   $("#rifSerial").value = rif.serial;
+  $("#rifFps").value = rif.fps || "";
+  $("#rifJoules").value = rif.joules || "";
+  $("#rifBbWeight").value = rif.bbWeight || "";
+  $("#rifZeroRange").value = rif.zeroRange || "";
+  $("#rifZeroUnit").value = rif.zeroUnit || "metres";
   $("#rifPhoto").value = "";
   $("#rifMake").focus();
 }
@@ -1705,6 +1741,11 @@ $("#rifForm").addEventListener("submit", async (event) => {
     model: $("#rifModel").value.trim(),
     type: $("#rifType").value,
     serial: $("#rifSerial").value.trim(),
+    fps: $("#rifFps").value,
+    joules: $("#rifJoules").value,
+    bbWeight: $("#rifBbWeight").value,
+    zeroRange: $("#rifZeroRange").value.trim(),
+    zeroUnit: $("#rifZeroUnit").value,
     photo: photo || existingRif?.photo || ""
   };
 

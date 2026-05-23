@@ -189,6 +189,45 @@
                 <input id="rifSerial" type="text" required />
               </label>
               <label>
+                FPS
+                <input id="rifFps" type="number" min="0" step="1" />
+              </label>
+              <label>
+                Joules
+                <input id="rifJoules" type="number" min="0" step="0.01" />
+              </label>
+              <label>
+                BB weight
+                <select id="rifBbWeight">
+                  <option value="">Choose weight</option>
+                  <option>0.20g</option>
+                  <option>0.23g</option>
+                  <option>0.25g</option>
+                  <option>0.28g</option>
+                  <option>0.30g</option>
+                  <option>0.32g</option>
+                  <option>0.36g</option>
+                  <option>0.40g</option>
+                  <option>0.43g</option>
+                  <option>0.45g</option>
+                  <option>0.48g</option>
+                  <option>Other</option>
+                </select>
+              </label>
+              <label>
+                Zero range
+                <input id="rifZeroRange" type="text" placeholder="e.g. 30, 40 or 50 ft 6 in" />
+              </label>
+              <label>
+                Zero unit
+                <select id="rifZeroUnit">
+                  <option value="metres">Metres</option>
+                  <option value="yards">Yards</option>
+                  <option value="feet">Feet</option>
+                  <option value="feet-inches">Feet & inches</option>
+                </select>
+              </label>
+              <label>
                 RIF picture
                 <input id="rifPhoto" type="file" accept="image/*" />
               </label>
