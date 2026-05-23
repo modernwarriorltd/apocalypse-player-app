@@ -3,6 +3,18 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "/book"
+  to = "https://apocalypse249.co.uk/v2/"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/booking"
+  to = "https://apocalypse249.co.uk/v2/"
+  status = 302
+  force = true
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200

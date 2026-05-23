@@ -6,6 +6,7 @@ const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/";
+const BOOKING_PATH = "/book";
 
 const defaultState = {
   currentUserId: null,
@@ -1114,7 +1115,7 @@ function renderEvents() {
               <p><strong>${formatDate(event.occurrenceDate)}</strong></p>
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
-              <form class="event-booking-form" action="${BOOKING_URL}" method="get" target="_top">
+              <form class="event-booking-form" action="${BOOKING_PATH}" method="get" target="_top">
                 <button class="small-button event-booking-link" type="submit">Book this event</button>
               </form>
             </article>
