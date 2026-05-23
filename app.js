@@ -1114,7 +1114,9 @@ function renderEvents() {
               <p><strong>${formatDate(event.occurrenceDate)}</strong></p>
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
-              <button class="small-button event-booking-link" type="button" data-booking-link>Book this event</button>
+              <form class="event-booking-form" action="${BOOKING_URL}" method="get" target="_top">
+                <button class="small-button event-booking-link" type="submit">Book this event</button>
+              </form>
             </article>
           `
         )
@@ -2041,20 +2043,6 @@ $("#clearMapMarkers").addEventListener("click", () => {
 $("#siteRulesJump").addEventListener("click", () => {
   setView("rules");
 });
-
-document.addEventListener("click", (event) => {
-  const bookingLink = event.target.closest("[data-booking-link]");
-  if (!bookingLink) return;
-  event.preventDefault();
-  openBookingSite();
-});
-
-function openBookingSite() {
-  const openedWindow = window.open(BOOKING_URL, "_blank", "noopener,noreferrer");
-  if (!openedWindow) {
-    window.location.assign(BOOKING_URL);
-  }
-}
 
 $("#mapStage").addEventListener("wheel", (event) => {
   event.preventDefault();

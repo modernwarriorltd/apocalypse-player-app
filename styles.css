@@ -498,10 +498,17 @@ textarea {
   margin-top: 8px;
 }
 
-.fallback-booking-link {
+.booking-form-link,
+.event-booking-form {
+  margin: 0;
+}
+
+.booking-address {
   color: #ff8a83;
+  font-size: 0.95rem;
   font-weight: 800;
-  margin-top: 6px;
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .social-links {

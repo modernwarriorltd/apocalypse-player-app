@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apocalypse 249 Player App</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260523-booking-button" />
+    <link rel="stylesheet" href="styles.css?v=20260523-booking-form" />
   </head>
   <body>
     <div class="app-shell">
@@ -317,12 +317,12 @@
               <p class="eyebrow">Game days</p>
               <h1>Book your next event</h1>
               <p>Use the site booking system to secure your place at the next Apocalypse 249 event.</p>
-              <button class="primary-action link-action" type="button" data-booking-link>
-                Book in
-              </button>
-              <a class="fallback-booking-link" href="https://apocalypse249.co.uk/v2/" target="_blank" rel="noreferrer">
-                Open booking in Safari
-              </a>
+              <form class="booking-form-link" action="https://apocalypse249.co.uk/v2/" method="get" target="_top">
+                <button class="primary-action link-action" type="submit">
+                  Book in
+                </button>
+              </form>
+              <p class="booking-address">https://apocalypse249.co.uk/v2/</p>
             </div>
           </section>
 
@@ -630,6 +630,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=20260523-booking-button"></script>
+    <script src="app.js?v=20260523-booking-form"></script>
   </body>
 </html>
