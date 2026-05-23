@@ -1114,11 +1114,7 @@ function renderEvents() {
               <p><strong>${formatDate(event.occurrenceDate)}</strong></p>
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
-              ${
-                event.bookingUrl
-                  ? `<a class="small-button event-booking-link" href="${escapeHtml(event.bookingUrl)}" target="_blank" rel="noreferrer">Book this event</a>`
-                  : ""
-              }
+              <a class="small-button event-booking-link" href="${BOOKING_URL}" target="_blank" rel="noreferrer">Book this event</a>
             </article>
           `
         )
@@ -1239,7 +1235,7 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
           <div>
             <h3>${escapeHtml(event.title)}</h3>
             <p>${formatDate(event.date)} | ${escapeHtml(repeatLabel(event) || "Does not repeat")} | ${escapeHtml(event.notes || "No notes")}</p>
-            ${event.bookingUrl ? `<p>Booking: ${escapeHtml(event.bookingUrl)}</p>` : ""}
+            <p>Booking: ${escapeHtml(BOOKING_URL)}</p>
           </div>
           <div class="card-actions">
             <button class="small-button edit-event" type="button" data-id="${event.id}">Edit</button>
