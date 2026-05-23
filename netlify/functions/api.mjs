@@ -44,6 +44,7 @@ const defaultState = () => ({
       text: "Welcome to the Apocalypse 249 player app. Keep an eye here for site updates, game day news and kit reminders.",
       image: "",
       createdAt: "2026-05-18T12:00:00.000Z",
+      scheduledAt: "",
       cheers: []
     }
   ],
@@ -216,6 +217,7 @@ function migrateState(state) {
   state.announcements.forEach((announcement) => {
     announcement.cheers ??= [];
     announcement.createdAt ??= new Date().toISOString();
+    announcement.scheduledAt ??= "";
   });
 
   assignMissingPlayerNumbers(state);
@@ -532,6 +534,7 @@ async function saveAnnouncement(state, body) {
     text: String(body.text || "").trim(),
     image: image || existing?.image || "",
     createdAt: existing?.createdAt || new Date().toISOString(),
+    scheduledAt: body.scheduledAt || "",
     cheers: existing?.cheers || []
   };
   if (existing) Object.assign(existing, announcement);
