@@ -1118,6 +1118,7 @@ function renderEvents() {
               <form class="event-booking-form" action="${BOOKING_PATH}" method="get" target="_top">
                 <button class="small-button event-booking-link" type="submit">Book this event</button>
               </form>
+              <button class="small-button" type="button" data-copy-booking>Copy booking link</button>
             </article>
           `
         )
@@ -2044,6 +2045,23 @@ $("#clearMapMarkers").addEventListener("click", () => {
 $("#siteRulesJump").addEventListener("click", () => {
   setView("rules");
 });
+
+document.addEventListener("click", async (event) => {
+  const copyButton = event.target.closest("[data-copy-booking]");
+  if (!copyButton) return;
+  await copyBookingLink();
+});
+
+async function copyBookingLink() {
+  const status = $("#bookingCopyStatus");
+  try {
+    await navigator.clipboard.writeText(BOOKING_URL);
+    if (status) status.textContent = "Booking link copied. Paste it into Safari if the installed app will not open it.";
+  } catch {
+    window.prompt("Copy this booking link:", BOOKING_URL);
+    if (status) status.textContent = "Copy the booking link shown above and paste it into Safari.";
+  }
+}
 
 $("#mapStage").addEventListener("wheel", (event) => {
   event.preventDefault();

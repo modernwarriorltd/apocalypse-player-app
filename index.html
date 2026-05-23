@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apocalypse 249 Player App</title>
-    <link rel="manifest" href="manifest.webmanifest?v=20260523-book-v2" />
-    <link rel="stylesheet" href="styles.css?v=20260523-book-v2" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260523-book-copy" />
+    <link rel="stylesheet" href="styles.css?v=20260523-book-copy" />
   </head>
   <body>
     <div class="app-shell">
@@ -322,7 +322,11 @@
                   Book in
                 </button>
               </form>
-              <p class="booking-address">https://apocalypse249.co.uk/v2/</p>
+              <button class="secondary-action link-action" type="button" data-copy-booking>
+                Copy booking link
+              </button>
+              <p class="booking-address" id="bookingAddress">https://apocalypse249.co.uk/v2/</p>
+              <p class="readonly-note" id="bookingCopyStatus"></p>
             </div>
           </section>
 
@@ -630,6 +634,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=20260523-book-v2"></script>
+    <script src="app.js?v=20260523-book-copy"></script>
   </body>
 </html>
