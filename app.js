@@ -1116,8 +1116,7 @@ function renderEvents() {
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
               <div class="event-booking-form">
-                <button class="small-button event-booking-link" type="button" data-open-booking>Book this event</button>
-                <button class="small-button secondary-small" type="button" data-open-booking-chrome>Open in Chrome</button>
+                <button class="small-button event-booking-link" type="button" data-open-booking-chrome>Book now</button>
               </div>
             </article>
           `
@@ -2047,23 +2046,14 @@ $("#siteRulesJump").addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const bookingButton = event.target.closest("[data-open-booking]");
   const chromeButton = event.target.closest("[data-open-booking-chrome]");
-  if (!bookingButton && !chromeButton) return;
+  if (!chromeButton) return;
 
-  openExternalBooking(Boolean(chromeButton));
+  openExternalBooking();
 });
 
-function openExternalBooking(preferChrome = false) {
-  if (preferChrome) {
-    window.location.href = CHROME_BOOKING_URL;
-    return;
-  }
-
-  const opened = window.open(BOOKING_URL, "_blank", "noopener,noreferrer");
-  if (!opened) {
-    window.location.href = BOOKING_URL;
-  }
+function openExternalBooking() {
+  window.location.href = CHROME_BOOKING_URL;
 }
 
 $("#mapStage").addEventListener("wheel", (event) => {
