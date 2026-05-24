@@ -4,13 +4,13 @@
 
 [[redirects]]
   from = "/book"
-  to = "https://apocalypse249.co.uk/v2/"
+  to = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/"
   status = 302
   force = true
 
 [[redirects]]
   from = "/booking"
-  to = "https://apocalypse249.co.uk/v2/"
+  to = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/"
   status = 302
   force = true
 

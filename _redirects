@@ -1,4 +1,4 @@
-/book https://apocalypse249.co.uk/v2/ 302!
-/booking https://apocalypse249.co.uk/v2/ 302!
+/book https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/ 302!
+/booking https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/ 302!
 /api/* /.netlify/functions/api/:splat 200
 /* /index.html 200

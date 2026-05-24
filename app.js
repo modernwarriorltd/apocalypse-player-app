@@ -5,7 +5,7 @@ const SESSION_KEY = "apocalypse249SessionToken";
 const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
-const BOOKING_URL = "https://apocalypse249.co.uk/v2/";
+const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
 const BOOKING_PATH = "/book";
 
 const defaultState = {
@@ -1118,7 +1118,6 @@ function renderEvents() {
               <form class="event-booking-form" action="${BOOKING_PATH}" method="get" target="_top">
                 <button class="small-button event-booking-link" type="submit">Book this event</button>
               </form>
-              <button class="small-button" type="button" data-copy-booking>Copy booking link</button>
             </article>
           `
         )
@@ -2045,23 +2044,6 @@ $("#clearMapMarkers").addEventListener("click", () => {
 $("#siteRulesJump").addEventListener("click", () => {
   setView("rules");
 });
-
-document.addEventListener("click", async (event) => {
-  const copyButton = event.target.closest("[data-copy-booking]");
-  if (!copyButton) return;
-  await copyBookingLink();
-});
-
-async function copyBookingLink() {
-  const status = $("#bookingCopyStatus");
-  try {
-    await navigator.clipboard.writeText(BOOKING_URL);
-    if (status) status.textContent = "Booking link copied. Paste it into Safari if the installed app will not open it.";
-  } catch {
-    window.prompt("Copy this booking link:", BOOKING_URL);
-    if (status) status.textContent = "Copy the booking link shown above and paste it into Safari.";
-  }
-}
 
 $("#mapStage").addEventListener("wheel", (event) => {
   event.preventDefault();
