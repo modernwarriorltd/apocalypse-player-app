@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apocalypse 249 Player App</title>
-    <link rel="manifest" href="manifest.webmanifest?v=20260524-booking-direct" />
-    <link rel="stylesheet" href="styles.css?v=20260524-booking-direct" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260524-booking-external" />
+    <link rel="stylesheet" href="styles.css?v=20260524-booking-external" />
   </head>
   <body>
     <div class="app-shell">
@@ -317,11 +317,14 @@
               <p class="eyebrow">Game days</p>
               <h1>Book your next event</h1>
               <p>Use the site booking system to secure your place at the next Apocalypse 249 event.</p>
-              <form class="booking-form-link" action="/book" method="get" target="_top">
-                <button class="primary-action link-action" type="submit">
+              <div class="booking-form-link">
+                <button class="primary-action link-action" type="button" data-open-booking>
                   Book in
                 </button>
-              </form>
+                <button class="secondary-action link-action" type="button" data-open-booking-chrome>
+                  Open in Chrome
+                </button>
+              </div>
             </div>
           </section>
 
@@ -629,6 +632,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=20260524-booking-direct"></script>
+    <script src="app.js?v=20260524-booking-external"></script>
   </body>
 </html>

@@ -501,6 +501,10 @@ textarea {
 .booking-form-link,
 .event-booking-form {
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }
 
 .booking-address {

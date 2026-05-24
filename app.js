@@ -6,7 +6,7 @@ const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
-const BOOKING_PATH = "/book";
+const CHROME_BOOKING_URL = `googlechromes://${BOOKING_URL.replace(/^https:\/\//, "")}`;
 
 const defaultState = {
   currentUserId: null,
@@ -1115,9 +1115,10 @@ function renderEvents() {
               <p><strong>${formatDate(event.occurrenceDate)}</strong></p>
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
-              <form class="event-booking-form" action="${BOOKING_PATH}" method="get" target="_top">
-                <button class="small-button event-booking-link" type="submit">Book this event</button>
-              </form>
+              <div class="event-booking-form">
+                <button class="small-button event-booking-link" type="button" data-open-booking>Book this event</button>
+                <button class="small-button secondary-small" type="button" data-open-booking-chrome>Open in Chrome</button>
+              </div>
             </article>
           `
         )
@@ -2044,6 +2045,26 @@ $("#clearMapMarkers").addEventListener("click", () => {
 $("#siteRulesJump").addEventListener("click", () => {
   setView("rules");
 });
+
+document.addEventListener("click", (event) => {
+  const bookingButton = event.target.closest("[data-open-booking]");
+  const chromeButton = event.target.closest("[data-open-booking-chrome]");
+  if (!bookingButton && !chromeButton) return;
+
+  openExternalBooking(Boolean(chromeButton));
+});
+
+function openExternalBooking(preferChrome = false) {
+  if (preferChrome) {
+    window.location.href = CHROME_BOOKING_URL;
+    return;
+  }
+
+  const opened = window.open(BOOKING_URL, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    window.location.href = BOOKING_URL;
+  }
+}
 
 $("#mapStage").addEventListener("wheel", (event) => {
   event.preventDefault();
