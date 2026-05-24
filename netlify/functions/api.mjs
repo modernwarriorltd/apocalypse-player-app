@@ -6,7 +6,7 @@ const IMAGE_STORE_NAME = "apocalypse-249-player-images";
 const STATE_KEY = "state";
 const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const PLAYER_PREFIX = "APOC-PLAYER";
-const BOOKING_URL = "https://apocalypse249.co.uk/v2/";
+const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
 
 const json = (statusCode, body) =>
   new Response(JSON.stringify(body), {
