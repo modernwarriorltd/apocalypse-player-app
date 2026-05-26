@@ -585,11 +585,11 @@ function renderTabNotifications() {
   let changed = false;
   let badgeCount = 0;
 
-  $$(".tab").forEach((tab) => {
+  $$(".tab, .home-tile").forEach((tab) => {
     const viewName = tab.dataset.view;
     const signature = notificationSignature(viewName);
-    const canShow = user && signature && viewName !== "profile" && (viewName !== "admin" || user.role === "admin");
-    if (user && viewName !== "profile" && !Object.prototype.hasOwnProperty.call(seen, viewName)) {
+    const canShow = user && signature && !["home", "profile"].includes(viewName) && (viewName !== "admin" || user.role === "admin");
+    if (user && !["home", "profile"].includes(viewName) && !Object.prototype.hasOwnProperty.call(seen, viewName)) {
       seen[viewName] = signature;
       changed = true;
     }
@@ -624,7 +624,7 @@ function setView(viewName) {
   $$(".view").forEach((view) => view.classList.add("hidden"));
   $(`#${viewName}View`)?.classList.remove("hidden");
 
-  $$(".tab").forEach((tab) => {
+  $$(".tab, .home-tile").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.view === viewName);
   });
 
@@ -1561,7 +1561,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
       const result = await apiRequest("auth/login", { email, password });
       applyServerData(result);
       $("#loginForm").reset();
-      setView("profile");
+      setView("home");
       render();
     } catch (error) {
       alert(error.message);
@@ -1584,7 +1584,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
   state.currentUserId = user.id;
   saveState();
   $("#loginForm").reset();
-  setView("profile");
+  setView("home");
   render();
 });
 
