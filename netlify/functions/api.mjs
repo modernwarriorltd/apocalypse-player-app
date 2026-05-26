@@ -97,6 +97,8 @@ export default async (request) => {
     if (action === "admin/announcements/delete") return deleteAnnouncement(state, body);
     if (action === "admin/contact/mark-replied") return markContactReplied(state, body);
     if (action === "admin/contact/delete") return deleteContactMessage(state, body);
+    if (action === "admin/export") return exportState(state);
+    if (action === "admin/import") return importState(body);
 
     return json(404, { error: "Not found." });
   } catch (error) {
@@ -119,6 +121,29 @@ async function loadState() {
 async function saveState(state) {
   const store = getStore(STORE_NAME);
   await store.setJSON(STATE_KEY, state);
+}
+
+function cloneState(state) {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function prepareImportedState(data) {
+  const imported = cloneState(data);
+  imported.users ??= [];
+  imported.events ??= [];
+  imported.announcements ??= [];
+  imported.sessions = {};
+  imported.contactMessages ??= [];
+
+  imported.users.forEach((user) => {
+    if (!user.passwordHash && user.password) {
+      user.passwordHash = hashPassword(user.password);
+    }
+    delete user.password;
+  });
+
+  migrateState(imported);
+  return imported;
 }
 
 async function saveImage(dataUrl, folder) {
@@ -281,6 +306,24 @@ function publicData(state) {
     announcements: state.announcements,
     contactMessages: state.contactMessages || []
   };
+}
+
+function exportState(state) {
+  return json(200, {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    data: cloneState(state)
+  });
+}
+
+async function importState(body) {
+  if (!body.data || !Array.isArray(body.data.users)) {
+    return json(400, { error: "Backup file is not valid." });
+  }
+
+  const imported = prepareImportedState(body.data);
+  await saveState(imported);
+  return json(200, { data: publicData(imported) });
 }
 
 function getSessionUser(state, authorization = "") {
