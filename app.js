@@ -1,4 +1,5 @@
 const STORAGE_KEY = "apocalypse249PlayerApp";
+const LOCAL_BACKUP_KEY = "apocalypse249PlayerAppBackup";
 const PLAYER_PREFIX = "APOC-PLAYER";
 const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const SESSION_KEY = "apocalypse249SessionToken";
@@ -190,7 +191,6 @@ function migrateState(loadedState) {
 
 function saveState() {
   if (apiOnline) {
-    localStorage.removeItem(STORAGE_KEY);
     return;
   }
 
@@ -270,7 +270,7 @@ async function fetchJson(url, options = {}) {
 function applyServerData(result) {
   if (result.token) {
     sessionToken = result.token;
-    localStorage.removeItem(STORAGE_KEY);
+    preserveLocalStateBackup("before-live-login");
     localStorage.setItem(SESSION_KEY, sessionToken);
   }
 
@@ -297,10 +297,6 @@ async function bootstrap() {
 
   renderBackendStatus();
 
-  if (apiOnline) {
-    localStorage.removeItem(STORAGE_KEY);
-  }
-
   if (apiOnline && sessionToken) {
     try {
       const result = await apiRequest("auth/me");
@@ -314,6 +310,24 @@ async function bootstrap() {
   }
 
   render();
+}
+
+function preserveLocalStateBackup(reason = "manual") {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return false;
+
+  try {
+    const parsed = JSON.parse(saved);
+    const backup = {
+      savedAt: new Date().toISOString(),
+      reason,
+      data: parsed
+    };
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(backup));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function detectApiMode() {
@@ -1482,6 +1496,92 @@ async function deleteUser(userId) {
   renderAdmin();
 }
 
+async function exportBackup() {
+  try {
+    const backup = apiOnline
+      ? await apiRequest("admin/export")
+      : { exportedAt: new Date().toISOString(), version: 1, data: state };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `apocalypse-249-backup-${toDateKey(new Date())}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    $("#backupStatus").textContent = "Backup downloaded.";
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function importBackupFile(file) {
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    const backupData = parsed.data || parsed;
+    if (!backupData || !Array.isArray(backupData.users)) {
+      throw new Error("That backup file does not look like an Apocalypse player app backup.");
+    }
+
+    const shouldRestore = window.confirm("Restore this backup? This will replace the current live app data.");
+    if (!shouldRestore) return;
+
+    if (apiOnline) {
+      const result = await apiRequest("admin/import", { data: backupData });
+      applyServerData(result);
+    } else {
+      preserveLocalStateBackup("before-local-import");
+      state = migrateState(backupData);
+      saveState();
+    }
+
+    render();
+    setView("admin");
+    $("#backupStatus").textContent = "Backup restored.";
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    $("#backupImportFile").value = "";
+  }
+}
+
+async function restoreLocalBackup() {
+  const rawBackup = localStorage.getItem(LOCAL_BACKUP_KEY) || localStorage.getItem(STORAGE_KEY);
+  if (!rawBackup) {
+    alert("No browser backup was found on this device.");
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(rawBackup);
+    const backupData = parsed.data || parsed;
+    if (!backupData || !Array.isArray(backupData.users)) {
+      throw new Error("The browser backup is not valid.");
+    }
+
+    const shouldRestore = window.confirm("Restore the browser backup to the current app data?");
+    if (!shouldRestore) return;
+
+    if (apiOnline) {
+      const result = await apiRequest("admin/import", { data: backupData });
+      applyServerData(result);
+    } else {
+      state = migrateState(backupData);
+      saveState();
+    }
+
+    render();
+    setView("admin");
+    $("#backupStatus").textContent = "Browser backup restored.";
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 async function approveUser(userId) {
   if (apiOnline) {
     try {
@@ -2006,6 +2106,12 @@ $("#refreshAdminData").addEventListener("click", async () => {
   renderAdmin();
   button.disabled = false;
   button.textContent = "Refresh list";
+});
+
+$("#exportBackup").addEventListener("click", exportBackup);
+$("#restoreLocalBackup").addEventListener("click", restoreLocalBackup);
+$("#backupImportFile").addEventListener("change", (event) => {
+  importBackupFile(event.target.files[0]);
 });
 
 $("#prevMonth").addEventListener("click", () => {
