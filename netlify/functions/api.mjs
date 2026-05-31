@@ -238,6 +238,7 @@ function migrateState(state) {
       rif.fps ??= "";
       rif.joules ??= "";
       rif.bbWeight ??= "";
+      rif.bbBrand ??= "";
       rif.zeroRange ??= "";
       rif.zeroUnit ??= "metres";
     });
@@ -245,6 +246,7 @@ function migrateState(state) {
     user.playerNumber ??= "";
     user.approved ??= true;
     user.ukaraExpiry ??= "";
+    user.createdAt ??= "";
     if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
       user.role = "admin";
       user.approved = true;
@@ -349,6 +351,7 @@ async function register(state, body) {
     approved: isOwner ? true : false,
     playerNumber: isOwner ? "" : nextPlayerNumber(state),
     passwordHash: hashPassword(password),
+    createdAt: new Date().toISOString(),
     name,
     phone: "",
     address: "",
@@ -444,6 +447,7 @@ async function saveRif(state, sessionUser, body) {
     fps: String(body.fps || "").trim(),
     joules: String(body.joules || "").trim(),
     bbWeight: String(body.bbWeight || "").trim(),
+    bbBrand: String(body.bbBrand || "").trim(),
     zeroRange: String(body.zeroRange || "").trim(),
     zeroUnit: String(body.zeroUnit || "metres").trim(),
     photo: photo || existing?.photo || ""
