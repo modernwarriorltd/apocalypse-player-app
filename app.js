@@ -18,6 +18,7 @@ const defaultState = {
       approved: true,
       playerNumber: "",
       password: "admin123",
+      createdAt: "2026-05-18T12:00:00.000Z",
       name: "Site Admin",
       phone: "",
       address: "",
@@ -34,6 +35,7 @@ const defaultState = {
       approved: true,
       playerNumber: "APOC-PLAYER0001",
       password: "player123",
+      createdAt: "2026-05-18T12:01:00.000Z",
       name: "Demo Player",
       phone: "07123 456789",
       address: "Apocalypse 249 Safe Zone",
@@ -52,6 +54,7 @@ const defaultState = {
           fps: "",
           joules: "",
           bbWeight: "",
+          bbBrand: "",
           zeroRange: "",
           zeroUnit: "metres",
           photo: ""
@@ -164,14 +167,16 @@ function migrateState(loadedState) {
     user.rifs.forEach((rif) => {
       rif.fps ??= "";
       rif.joules ??= "";
-      rif.bbWeight ??= "";
-      rif.zeroRange ??= "";
+          rif.bbWeight ??= "";
+          rif.bbBrand ??= "";
+          rif.zeroRange ??= "";
       rif.zeroUnit ??= "metres";
     });
     user.rifWishlist ??= [];
     user.playerNumber ??= "";
     user.approved ??= true;
     user.ukaraExpiry ??= "";
+    user.createdAt ??= "";
 
     if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
       user.role = "admin";
@@ -788,6 +793,7 @@ function renderRifs(user) {
       rif.fps ? `${rif.fps} FPS` : "",
       rif.joules ? `${rif.joules} J` : "",
       rif.bbWeight ? `${rif.bbWeight} BB` : "",
+      rif.bbBrand ? `BB brand: ${rif.bbBrand}` : "",
       rif.zeroRange ? `Zero: ${rif.zeroRange} ${zeroUnitLabel(rif.zeroUnit)}` : ""
     ].filter(Boolean);
     template.querySelector("p").innerHTML = `
@@ -938,6 +944,7 @@ function editRif(rifId) {
   $("#rifFps").value = rif.fps || "";
   $("#rifJoules").value = rif.joules || "";
   $("#rifBbWeight").value = rif.bbWeight || "";
+  $("#rifBbBrand").value = rif.bbBrand || "";
   $("#rifZeroRange").value = rif.zeroRange || "";
   $("#rifZeroUnit").value = rif.zeroUnit || "metres";
   $("#rifPhoto").value = "";
@@ -1205,7 +1212,15 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
   const user = currentUser();
   if (!user || user.role !== "admin") return;
 
-  $("#adminUsers").innerHTML = state.users
+  const adminUserList = state.users
+    .map((player, index) => ({ player, index }))
+    .sort((a, b) => {
+      const dateCompare = String(b.player.createdAt || "").localeCompare(String(a.player.createdAt || ""));
+      return dateCompare || b.index - a.index;
+    })
+    .map((item) => item.player);
+
+  $("#adminUsers").innerHTML = adminUserList
     .map(
       (player) => `
         <article class="user-row">
@@ -1241,7 +1256,7 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
     button.addEventListener("click", () => approveUser(button.dataset.id));
   });
 
-  const selectedUser = state.users.find((item) => item.id === selectedUserId) || state.users[0];
+  const selectedUser = state.users.find((item) => item.id === selectedUserId) || adminUserList[0];
   fillAdminUser(selectedUser.id);
 
   $("#adminEvents").innerHTML = state.events
@@ -1268,6 +1283,52 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
   renderAdminAnnouncements();
   renderAdminContactMessages();
   renderAdminWishlist();
+  renderBbBrandReport();
+}
+
+function bbBrandCounts() {
+  const counts = new Map();
+  state.users.forEach((player) => {
+    if (player.role !== "player") return;
+    (player.rifs || []).forEach((rif) => {
+      const brand = String(rif.bbBrand || "").trim();
+      if (!brand) return;
+      const key = brand.toLowerCase();
+      const existing = counts.get(key) || { brand, count: 0 };
+      existing.count += 1;
+      counts.set(key, existing);
+    });
+  });
+  return [...counts.values()].sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+}
+
+function renderBbBrandReport() {
+  const chart = $("#bbBrandChart");
+  if (!chart) return;
+
+  const brands = bbBrandCounts();
+  if (!brands.length) {
+    chart.innerHTML = `<article class="user-row"><div><h3>No BB brands recorded</h3><p>Brands will appear here once players add them to their RIF logs.</p></div></article>`;
+    return;
+  }
+
+  const highest = Math.max(...brands.map((item) => item.count));
+  chart.innerHTML = brands
+    .map((item) => {
+      const width = Math.max(8, Math.round((item.count / highest) * 100));
+      return `
+        <div class="bb-brand-row">
+          <div class="bb-brand-label">
+            <strong>${escapeHtml(item.brand)}</strong>
+            <span>${item.count} RIF${item.count === 1 ? "" : "s"}</span>
+          </div>
+          <div class="bb-brand-track" aria-label="${escapeHtml(item.brand)} ${item.count}">
+            <span style="width: ${width}%"></span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function renderAdminWishlist() {
@@ -1768,6 +1829,7 @@ $("#registerForm").addEventListener("submit", async (event) => {
     approved: false,
     playerNumber: nextPlayerNumber(),
     password: $("#registerPassword").value,
+    createdAt: new Date().toISOString(),
     name: $("#registerName").value.trim(),
     phone: "",
     address: "",
@@ -1850,6 +1912,7 @@ $("#rifForm").addEventListener("submit", async (event) => {
     fps: $("#rifFps").value,
     joules: $("#rifJoules").value,
     bbWeight: $("#rifBbWeight").value,
+    bbBrand: $("#rifBbBrand").value.trim(),
     zeroRange: $("#rifZeroRange").value.trim(),
     zeroUnit: $("#rifZeroUnit").value,
     photo: photo || existingRif?.photo || ""

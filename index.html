@@ -7,8 +7,8 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Apocalypse 249 Player App</title>
-    <link rel="manifest" href="manifest.webmanifest?v=20260526-backup-restore" />
-    <link rel="stylesheet" href="styles.css?v=20260526-backup-restore" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260531-bb-report" />
+    <link rel="stylesheet" href="styles.css?v=20260531-bb-report" />
   </head>
   <body>
     <div class="app-shell">
@@ -289,6 +289,10 @@
                   <option>0.48g</option>
                   <option>Other</option>
                 </select>
+              </label>
+              <label>
+                Brand of BB
+                <input id="rifBbBrand" type="text" placeholder="e.g. BLS, ASG, Nuprol" />
               </label>
               <label>
                 Zero range
@@ -672,6 +676,11 @@
                 <div class="admin-wishlist" id="adminWishlist"></div>
               </div>
 
+              <div class="admin-panel bb-report-admin">
+                <h2>BB brand report</h2>
+                <div class="bb-brand-chart" id="bbBrandChart"></div>
+              </div>
+
               <div class="admin-panel backup-admin">
                 <h2>Backup and restore</h2>
                 <div class="backup-actions">
@@ -718,6 +727,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=20260526-backup-restore"></script>
+    <script src="app.js?v=20260531-bb-report"></script>
   </body>
 </html>
