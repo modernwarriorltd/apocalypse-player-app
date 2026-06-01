@@ -1289,17 +1289,19 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
 function bbBrandCounts() {
   const counts = new Map();
   state.users.forEach((player) => {
-    if (player.role !== "player") return;
     (player.rifs || []).forEach((rif) => {
-      const brand = String(rif.bbBrand || "").trim();
+      const brand = String(rif.bbBrand || rif.bbbrand || rif.brandOfBb || rif.bbBrandUsed || "").trim();
       if (!brand) return;
       const key = brand.toLowerCase();
-      const existing = counts.get(key) || { brand, count: 0 };
-      existing.count += 1;
+      const existing = counts.get(key) || { brand, users: new Set(), rifCount: 0 };
+      existing.users.add(player.id);
+      existing.rifCount += 1;
       counts.set(key, existing);
     });
   });
-  return [...counts.values()].sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+  return [...counts.values()]
+    .map((item) => ({ brand: item.brand, userCount: item.users.size, rifCount: item.rifCount }))
+    .sort((a, b) => b.userCount - a.userCount || b.rifCount - a.rifCount || a.brand.localeCompare(b.brand));
 }
 
 function renderBbBrandReport() {
@@ -1307,22 +1309,30 @@ function renderBbBrandReport() {
   if (!chart) return;
 
   const brands = bbBrandCounts();
+  const totalRifs = state.users.reduce((total, player) => total + (player.rifs || []).length, 0);
   if (!brands.length) {
-    chart.innerHTML = `<article class="user-row"><div><h3>No BB brands recorded</h3><p>Brands will appear here once players add them to their RIF logs.</p></div></article>`;
+    chart.innerHTML = `
+      <article class="user-row">
+        <div>
+          <h3>No BB brands recorded</h3>
+          <p>${totalRifs ? `${totalRifs} RIF${totalRifs === 1 ? "" : "s"} found, but none have a saved BB brand yet.` : "Brands will appear here once players add them to their RIF logs."}</p>
+        </div>
+      </article>
+    `;
     return;
   }
 
-  const highest = Math.max(...brands.map((item) => item.count));
+  const highest = Math.max(...brands.map((item) => item.userCount));
   chart.innerHTML = brands
     .map((item) => {
-      const width = Math.max(8, Math.round((item.count / highest) * 100));
+      const width = Math.max(8, Math.round((item.userCount / highest) * 100));
       return `
         <div class="bb-brand-row">
           <div class="bb-brand-label">
             <strong>${escapeHtml(item.brand)}</strong>
-            <span>${item.count} RIF${item.count === 1 ? "" : "s"}</span>
+            <span>${item.userCount} user${item.userCount === 1 ? "" : "s"} | ${item.rifCount} RIF${item.rifCount === 1 ? "" : "s"}</span>
           </div>
-          <div class="bb-brand-track" aria-label="${escapeHtml(item.brand)} ${item.count}">
+          <div class="bb-brand-track" aria-label="${escapeHtml(item.brand)} ${item.userCount}">
             <span style="width: ${width}%"></span>
           </div>
         </div>
