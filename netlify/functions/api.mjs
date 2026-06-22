@@ -49,6 +49,7 @@ const defaultState = () => ({
       cheers: []
     }
   ],
+  earlyAccess: [],
   sessions: {},
   contactMessages: []
 });
@@ -95,6 +96,8 @@ export default async (request) => {
     if (action === "admin/events/delete") return deleteEvent(state, body);
     if (action === "admin/announcements/save") return saveAnnouncement(state, body);
     if (action === "admin/announcements/delete") return deleteAnnouncement(state, body);
+    if (action === "admin/early-access/save") return saveEarlyAccess(state, body);
+    if (action === "admin/early-access/delete") return deleteEarlyAccess(state, body);
     if (action === "admin/contact/mark-replied") return markContactReplied(state, body);
     if (action === "admin/contact/delete") return deleteContactMessage(state, body);
     if (action === "admin/export") return exportState(state);
@@ -132,6 +135,7 @@ function prepareImportedState(data) {
   imported.users ??= [];
   imported.events ??= [];
   imported.announcements ??= [];
+  imported.earlyAccess ??= [];
   imported.sessions = {};
   imported.contactMessages ??= [];
 
@@ -218,6 +222,13 @@ async function externalizeStateImages(state) {
     }
   }
 
+  for (const post of state.earlyAccess || []) {
+    if (isDataImage(post.image)) {
+      post.image = await saveImage(post.image, "early-access");
+      changed = true;
+    }
+  }
+
   return changed;
 }
 
@@ -225,6 +236,7 @@ function migrateState(state) {
   state.users ??= [];
   state.events ??= [];
   state.announcements ??= [];
+  state.earlyAccess ??= [];
   state.sessions ??= {};
   state.contactMessages ??= [];
 
@@ -257,6 +269,13 @@ function migrateState(state) {
     announcement.cheers ??= [];
     announcement.createdAt ??= new Date().toISOString();
     announcement.scheduledAt ??= "";
+  });
+
+  state.earlyAccess.forEach((post) => {
+    post.createdAt ??= new Date().toISOString();
+    post.url ??= "";
+    post.buttonText ??= "Open link";
+    post.image ??= "";
   });
 
   assignMissingPlayerNumbers(state);
@@ -306,6 +325,7 @@ function publicData(state) {
     users: state.users.map(safeUser),
     events: state.events,
     announcements: state.announcements,
+    earlyAccess: state.earlyAccess,
     contactMessages: state.contactMessages || []
   };
 }
@@ -609,6 +629,30 @@ async function saveAnnouncement(state, body) {
 
 async function deleteAnnouncement(state, body) {
   state.announcements = state.announcements.filter((announcement) => announcement.id !== body.id);
+  await saveState(state);
+  return json(200, { data: publicData(state) });
+}
+
+async function saveEarlyAccess(state, body) {
+  state.earlyAccess ??= [];
+  const existing = state.earlyAccess.find((post) => post.id === body.id);
+  const image = await saveImage(body.image, "early-access");
+  const post = {
+    id: body.id || makeId("early"),
+    text: String(body.text || "").trim(),
+    image: image || existing?.image || "",
+    url: String(body.url || "").trim(),
+    buttonText: String(body.buttonText || "Open link").trim() || "Open link",
+    createdAt: existing?.createdAt || new Date().toISOString()
+  };
+  if (existing) Object.assign(existing, post);
+  else state.earlyAccess.push(post);
+  await saveState(state);
+  return json(200, { data: publicData(state) });
+}
+
+async function deleteEarlyAccess(state, body) {
+  state.earlyAccess = (state.earlyAccess || []).filter((post) => post.id !== body.id);
   await saveState(state);
   return json(200, { data: publicData(state) });
 }
