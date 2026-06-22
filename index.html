@@ -7,8 +7,8 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Apocalypse 249 Player App</title>
-    <link rel="manifest" href="manifest.webmanifest?v=20260601-bb-report-fix" />
-    <link rel="stylesheet" href="styles.css?v=20260601-bb-report-fix" />
+    <link rel="manifest" href="manifest.webmanifest?v=20260622-early-access-admin" />
+    <link rel="stylesheet" href="styles.css?v=20260622-early-access-admin" />
   </head>
   <body>
     <div class="app-shell">
@@ -81,6 +81,7 @@
             <button class="tab is-active" type="button" data-view="profile">ID</button>
             <button class="tab" type="button" data-view="rifs">RIFs</button>
             <button class="tab" type="button" data-view="announcements">Announcements</button>
+            <button class="tab" type="button" data-view="earlyAccess">Early Access</button>
             <button class="tab" type="button" data-view="calendar">Calendar</button>
             <button class="tab" type="button" data-view="booking">Booking</button>
             <button class="tab" type="button" data-view="supplies">Supplies</button>
@@ -125,6 +126,11 @@
                   <span class="tile-kicker">News</span>
                   <strong>Updates</strong>
                   <span>Read the latest site updates.</span>
+                </button>
+                <button class="home-tile" type="button" data-view="earlyAccess">
+                  <span class="tile-kicker">Offers</span>
+                  <strong>Early Access</strong>
+                  <span>See limited previews and priority links.</span>
                 </button>
                 <button class="home-tile" type="button" data-view="siteDetails">
                   <span class="tile-kicker">Map</span>
@@ -367,6 +373,14 @@
             <div class="announcement-feed" id="announcementFeed"></div>
           </section>
 
+          <section class="view hidden" id="earlyAccessView">
+            <div class="page-heading">
+              <p class="eyebrow">Early Access</p>
+              <h1>Priority drops and links</h1>
+            </div>
+            <div class="announcement-feed" id="earlyAccessFeed"></div>
+          </section>
+
           <section class="view hidden" id="calendarView">
             <div class="page-heading">
               <p class="eyebrow">Events</p>
@@ -561,8 +575,51 @@
               <h1>Manage players and events</h1>
             </div>
 
+            <div class="admin-launcher" aria-label="Admin sections">
+              <button class="home-tile admin-section-button" type="button" data-admin-target="users">
+                <span class="tile-kicker">Players</span>
+                <strong>User Approval</strong>
+                <span>Approve, edit, and delete users.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="events">
+                <span class="tile-kicker">Calendar</span>
+                <strong>Events</strong>
+                <span>Create and manage game dates.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="announcements">
+                <span class="tile-kicker">News</span>
+                <strong>Announcements</strong>
+                <span>Post image and text updates.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="earlyAccess">
+                <span class="tile-kicker">Offers</span>
+                <strong>Early Access</strong>
+                <span>Post image, text, and links.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="contact">
+                <span class="tile-kicker">Inbox</span>
+                <strong>Contact</strong>
+                <span>Review player questions.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="wishlist">
+                <span class="tile-kicker">Stock</span>
+                <strong>Wishlists</strong>
+                <span>See RIFs players want.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="bbReport">
+                <span class="tile-kicker">Ammo</span>
+                <strong>BB List</strong>
+                <span>View BB brand report.</span>
+              </button>
+              <button class="home-tile admin-section-button" type="button" data-admin-target="backup">
+                <span class="tile-kicker">Data</span>
+                <strong>Backup</strong>
+                <span>Export and restore data.</span>
+              </button>
+            </div>
+
             <div class="admin-grid">
-              <div class="admin-panel">
+              <div class="admin-panel admin-section" data-admin-section="users">
                 <div class="panel-title-row">
                   <h2>Players</h2>
                   <button class="small-button" type="button" id="refreshAdminData">Refresh list</button>
@@ -570,7 +627,7 @@
                 <div class="admin-users" id="adminUsers"></div>
               </div>
 
-              <div class="admin-panel">
+              <div class="admin-panel admin-section" data-admin-section="users">
                 <h2>Edit selected player</h2>
                 <form id="adminUserForm">
                   <input type="hidden" id="adminUserId" />
@@ -605,7 +662,7 @@
                 </form>
               </div>
 
-              <div class="admin-panel events-admin">
+              <div class="admin-panel events-admin admin-section hidden" data-admin-section="events">
                 <h2>Calendar events</h2>
                 <form id="eventForm">
                   <input type="hidden" id="eventId" />
@@ -645,7 +702,7 @@
                 <div class="admin-events" id="adminEvents"></div>
               </div>
 
-              <div class="admin-panel announcements-admin">
+              <div class="admin-panel announcements-admin admin-section hidden" data-admin-section="announcements">
                 <h2>Announcements</h2>
                 <form id="announcementForm">
                   <input type="hidden" id="announcementId" />
@@ -666,22 +723,47 @@
                 <div class="admin-announcements" id="adminAnnouncements"></div>
               </div>
 
-              <div class="admin-panel contact-admin">
+              <div class="admin-panel early-access-admin admin-section hidden" data-admin-section="earlyAccess">
+                <h2>Early Access</h2>
+                <form id="earlyAccessForm">
+                  <input type="hidden" id="earlyAccessId" />
+                  <label>
+                    Post image
+                    <input id="earlyAccessImage" type="file" accept="image/*" />
+                  </label>
+                  <label>
+                    Button link
+                    <input id="earlyAccessUrl" type="url" placeholder="https://example.com" />
+                  </label>
+                  <label>
+                    Button text
+                    <input id="earlyAccessButtonText" type="text" placeholder="Open link" />
+                  </label>
+                  <label>
+                    Post text
+                    <textarea id="earlyAccessText" rows="4" required></textarea>
+                  </label>
+                  <button class="primary-action" type="submit">Save early access post</button>
+                </form>
+                <div class="admin-announcements" id="adminEarlyAccess"></div>
+              </div>
+
+              <div class="admin-panel contact-admin admin-section hidden" data-admin-section="contact">
                 <h2>Contact messages</h2>
                 <div class="admin-contact-messages" id="adminContactMessages"></div>
               </div>
 
-              <div class="admin-panel wishlist-admin">
+              <div class="admin-panel wishlist-admin admin-section hidden" data-admin-section="wishlist">
                 <h2>RIF wishlists</h2>
                 <div class="admin-wishlist" id="adminWishlist"></div>
               </div>
 
-              <div class="admin-panel bb-report-admin">
+              <div class="admin-panel bb-report-admin admin-section hidden" data-admin-section="bbReport">
                 <h2>BB brand report</h2>
                 <div class="bb-brand-chart" id="bbBrandChart"></div>
               </div>
 
-              <div class="admin-panel backup-admin">
+              <div class="admin-panel backup-admin admin-section hidden" data-admin-section="backup">
                 <h2>Backup and restore</h2>
                 <div class="backup-actions">
                   <button class="small-button" type="button" id="exportBackup">Download backup</button>
@@ -727,6 +809,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=20260601-bb-report-fix"></script>
+    <script src="app.js?v=20260622-early-access-admin"></script>
   </body>
 </html>

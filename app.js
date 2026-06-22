@@ -88,6 +88,7 @@ const defaultState = {
       cheers: []
     }
   ],
+  earlyAccess: [],
   contactMessages: []
 };
 
@@ -156,6 +157,7 @@ function migrateState(loadedState) {
   loadedState.users ??= [];
   loadedState.events ??= [];
   loadedState.announcements ??= [];
+  loadedState.earlyAccess ??= [];
   loadedState.contactMessages ??= [];
 
   loadedState.events.forEach((event) => {
@@ -188,6 +190,13 @@ function migrateState(loadedState) {
     announcement.cheers ??= [];
     announcement.createdAt ??= new Date().toISOString();
     announcement.scheduledAt ??= "";
+  });
+
+  loadedState.earlyAccess.forEach((post) => {
+    post.createdAt ??= new Date().toISOString();
+    post.url ??= "";
+    post.buttonText ??= "Open link";
+    post.image ??= "";
   });
 
   assignMissingPlayerNumbers(loadedState);
@@ -283,6 +292,7 @@ function applyServerData(result) {
     state.users = result.data.users || [];
     state.events = result.data.events || [];
     state.announcements = result.data.announcements || [];
+    state.earlyAccess = result.data.earlyAccess || [];
     state.contactMessages = result.data.contactMessages || [];
   }
 
@@ -542,6 +552,10 @@ function visibleAnnouncements() {
   return state.announcements.filter(isAnnouncementLive);
 }
 
+function visibleEarlyAccessPosts() {
+  return [...(state.earlyAccess || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 function toDateTimeLocalValue(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -572,6 +586,13 @@ function notificationSignature(viewName) {
       .join("|");
   }
 
+  if (viewName === "earlyAccess") {
+    return visibleEarlyAccessPosts()
+      .map((post) => `${post.id}:${post.createdAt || ""}:${post.url || ""}:${post.text || ""}`)
+      .sort()
+      .join("|");
+  }
+
   if (viewName === "calendar") {
     return [...state.events]
       .map((event) => `${event.id}:${event.date || ""}:${event.title || ""}:${event.repeats || ""}:${event.repeatUntil || ""}`)
@@ -584,6 +605,52 @@ function notificationSignature(viewName) {
     const messages = (state.contactMessages || []).filter((message) => !message.replied).map((message) => `${message.id}:${message.createdAt || ""}`);
     const wishlists = state.users.flatMap((user) => (user.rifWishlist || []).map((rif) => `${user.id}:${rif.id}:${rif.make}:${rif.model}`));
     return [...pendingUsers, ...messages, ...wishlists].sort().join("|");
+  }
+
+  return "";
+}
+
+function adminNotificationSignature(sectionName) {
+  if (sectionName === "users") {
+    return state.users
+      .filter((user) => user.role === "player" && !user.approved)
+      .map((user) => `${user.id}:${user.createdAt || ""}`)
+      .sort()
+      .join("|");
+  }
+
+  if (sectionName === "events") {
+    return notificationSignature("calendar");
+  }
+
+  if (sectionName === "announcements") {
+    return notificationSignature("announcements");
+  }
+
+  if (sectionName === "earlyAccess") {
+    return notificationSignature("earlyAccess");
+  }
+
+  if (sectionName === "contact") {
+    return (state.contactMessages || [])
+      .filter((message) => !message.replied)
+      .map((message) => `${message.id}:${message.createdAt || ""}`)
+      .sort()
+      .join("|");
+  }
+
+  if (sectionName === "wishlist") {
+    return state.users
+      .flatMap((user) => (user.rifWishlist || []).map((rif) => `${user.id}:${rif.id}:${rif.make}:${rif.model}`))
+      .sort()
+      .join("|");
+  }
+
+  if (sectionName === "bbReport") {
+    return state.users
+      .flatMap((user) => (user.rifs || []).map((rif) => `${user.id}:${rif.id}:${rif.bbBrand || ""}`))
+      .sort()
+      .join("|");
   }
 
   return "";
@@ -604,7 +671,7 @@ function renderTabNotifications() {
   let changed = false;
   let badgeCount = 0;
 
-  $$(".tab, .home-tile").forEach((tab) => {
+  $$(".tab, .home-tile[data-view]").forEach((tab) => {
     const viewName = tab.dataset.view;
     const signature = notificationSignature(viewName);
     const canShow = user && signature && !["home", "profile"].includes(viewName) && (viewName !== "admin" || user.role === "admin");
@@ -643,7 +710,7 @@ function setView(viewName) {
   $$(".view").forEach((view) => view.classList.add("hidden"));
   $(`#${viewName}View`)?.classList.remove("hidden");
 
-  $$(".tab, .home-tile").forEach((tab) => {
+  $$(".tab, .home-tile[data-view]").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.view === viewName);
   });
 
@@ -664,11 +731,50 @@ function setView(viewName) {
     renderAnnouncements();
   }
 
+  if (viewName === "earlyAccess") {
+    renderEarlyAccess();
+  }
+
   if (viewName === "siteDetails") {
     window.requestAnimationFrame(fitMapToStage);
   }
 
   renderTabNotifications();
+}
+
+function setAdminSection(sectionName = "users") {
+  $$(".admin-section").forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.adminSection !== sectionName);
+  });
+  $$(".admin-section-button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.adminTarget === sectionName);
+  });
+
+  const signature = adminNotificationSignature(sectionName);
+  if (signature) {
+    const seen = loadTabSeen();
+    seen[`admin:${sectionName}`] = signature;
+    saveTabSeen(seen);
+  }
+
+  renderAdminSectionNotifications();
+}
+
+function renderAdminSectionNotifications() {
+  const seen = loadTabSeen();
+  let changed = false;
+  $$(".admin-section-button").forEach((button) => {
+    const sectionName = button.dataset.adminTarget;
+    const signature = adminNotificationSignature(sectionName);
+    const key = `admin:${sectionName}`;
+    if (signature && !Object.prototype.hasOwnProperty.call(seen, key)) {
+      seen[key] = signature;
+      changed = true;
+    }
+    const hasUpdate = Boolean(signature && seen[key] !== signature && !button.classList.contains("is-active"));
+    button.classList.toggle("has-notification", hasUpdate);
+  });
+  if (changed) saveTabSeen(seen);
 }
 
 function startAdminAutoRefresh() {
@@ -746,6 +852,7 @@ function render() {
   renderRifs(user);
   renderRifWishlist(user);
   renderAnnouncements();
+  renderEarlyAccess();
   renderCalendar();
   renderAdmin();
   renderTabNotifications();
@@ -1042,6 +1149,104 @@ function renderAnnouncements() {
   });
 }
 
+function renderEarlyAccess() {
+  const feed = $("#earlyAccessFeed");
+  if (!feed) return;
+
+  const posts = visibleEarlyAccessPosts();
+  if (!posts.length) {
+    feed.innerHTML = `<article class="announcement-card"><h2>No early access posts yet</h2><p>The admin team can add priority drops and preview links from the backend.</p></article>`;
+    return;
+  }
+
+  feed.innerHTML = posts
+    .map(
+      (post) => `
+        <article class="announcement-card">
+          ${post.image ? `<img src="${post.image}" alt="Early access image" />` : ""}
+          <div class="announcement-body">
+            <p>${escapeHtml(post.text)}</p>
+            ${
+              post.url
+                ? `<a class="primary-action link-action" href="${escapeHtml(post.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(post.buttonText || "Open link")}</a>`
+                : ""
+            }
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderAdminEarlyAccess() {
+  const list = $("#adminEarlyAccess");
+  if (!list) return;
+
+  if (!state.earlyAccess.length) {
+    list.innerHTML = `<article class="user-row"><div><h3>No early access posts</h3><p>Add the first post using the form above.</p></div></article>`;
+    return;
+  }
+
+  list.innerHTML = [...state.earlyAccess]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(
+      (post) => `
+        <article class="user-row">
+          <div>
+            <h3>${escapeHtml(post.text.slice(0, 58))}${post.text.length > 58 ? "..." : ""}</h3>
+            <p>${post.url ? escapeHtml(post.url) : "No link"} | ${formatDateTime(post.createdAt)}</p>
+          </div>
+          <div class="card-actions">
+            <button class="small-button edit-early-access" type="button" data-id="${post.id}">Edit</button>
+            <button class="small-button danger delete-early-access" type="button" data-id="${post.id}">Delete</button>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+
+  $$(".edit-early-access").forEach((button) =>
+    button.addEventListener("click", () => fillEarlyAccess(button.dataset.id))
+  );
+  $$(".delete-early-access").forEach((button) =>
+    button.addEventListener("click", () => deleteEarlyAccess(button.dataset.id))
+  );
+}
+
+function fillEarlyAccess(postId) {
+  const post = state.earlyAccess.find((item) => item.id === postId);
+  if (!post) return;
+
+  $("#earlyAccessId").value = post.id;
+  $("#earlyAccessText").value = post.text;
+  $("#earlyAccessUrl").value = post.url || "";
+  $("#earlyAccessButtonText").value = post.buttonText || "Open link";
+  $("#earlyAccessImage").value = "";
+  $("#earlyAccessText").focus();
+}
+
+async function deleteEarlyAccess(postId) {
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/early-access/delete", { id: postId });
+      applyServerData(result);
+      renderEarlyAccess();
+      renderAdminEarlyAccess();
+      renderAdminSectionNotifications();
+      return;
+    } catch (error) {
+      alert(error.message);
+      return;
+    }
+  }
+
+  state.earlyAccess = state.earlyAccess.filter((post) => post.id !== postId);
+  saveState();
+  renderEarlyAccess();
+  renderAdminEarlyAccess();
+  renderAdminSectionNotifications();
+}
+
 async function cheerAnnouncement(announcementId) {
   const user = currentUser();
   const announcement = state.announcements.find((item) => item.id === announcementId);
@@ -1284,6 +1489,8 @@ function renderAdmin(selectedUserId = $("#adminUserId").value || "") {
   renderAdminContactMessages();
   renderAdminWishlist();
   renderBbBrandReport();
+  renderAdminEarlyAccess();
+  renderAdminSectionNotifications();
 }
 
 function bbBrandCounts() {
@@ -2171,6 +2378,49 @@ $("#announcementForm").addEventListener("submit", async (event) => {
   renderAdminAnnouncements();
 });
 
+$("#earlyAccessForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const postId = $("#earlyAccessId").value;
+  const existingPost = state.earlyAccess.find((item) => item.id === postId);
+  const image = await readImage($("#earlyAccessImage"), { maxSize: 1100, quality: 0.72 });
+  const postData = {
+    id: postId || makeId("early"),
+    text: $("#earlyAccessText").value.trim(),
+    image: image || existingPost?.image || "",
+    url: $("#earlyAccessUrl").value.trim(),
+    buttonText: $("#earlyAccessButtonText").value.trim() || "Open link",
+    createdAt: existingPost?.createdAt || new Date().toISOString()
+  };
+
+  if (apiOnline) {
+    try {
+      const result = await apiRequest("admin/early-access/save", postData);
+      applyServerData(result);
+      $("#earlyAccessForm").reset();
+      $("#earlyAccessId").value = "";
+      renderEarlyAccess();
+      renderAdminEarlyAccess();
+      renderAdminSectionNotifications();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (existingPost) {
+    Object.assign(existingPost, postData);
+  } else {
+    state.earlyAccess.push(postData);
+  }
+
+  saveState();
+  $("#earlyAccessForm").reset();
+  $("#earlyAccessId").value = "";
+  renderEarlyAccess();
+  renderAdminEarlyAccess();
+  renderAdminSectionNotifications();
+});
+
 $("#refreshAdminData").addEventListener("click", async () => {
   const button = $("#refreshAdminData");
   button.disabled = true;
@@ -2185,6 +2435,10 @@ $("#exportBackup").addEventListener("click", exportBackup);
 $("#restoreLocalBackup").addEventListener("click", restoreLocalBackup);
 $("#backupImportFile").addEventListener("change", (event) => {
   importBackupFile(event.target.files[0]);
+});
+
+$$(".admin-section-button").forEach((button) => {
+  button.addEventListener("click", () => setAdminSection(button.dataset.adminTarget));
 });
 
 $("#prevMonth").addEventListener("click", () => {

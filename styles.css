@@ -975,8 +975,20 @@ textarea {
   align-items: start;
 }
 
+.admin-launcher {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-section-button {
+  min-height: 118px;
+}
+
 .events-admin,
 .announcements-admin,
+.early-access-admin,
 .contact-admin,
 .wishlist-admin,
 .bb-report-admin,
