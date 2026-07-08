@@ -8,12 +8,19 @@ const OWNER_ADMIN_EMAIL = "chrisyoungairsoft@gmail.com";
 const PLAYER_PREFIX = "APOC-PLAYER";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
 
+const corsHeaders = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type, authorization"
+};
+
 const json = (statusCode, body) =>
   new Response(JSON.stringify(body), {
     status: statusCode,
     headers: {
       "content-type": "application/json",
-      "cache-control": "no-store"
+      "cache-control": "no-store",
+      ...corsHeaders
     }
   });
 
@@ -56,6 +63,13 @@ const defaultState = () => ({
 
 export default async (request) => {
   try {
+    if (request.method === "OPTIONS") {
+      return new Response("", {
+        status: 204,
+        headers: corsHeaders
+      });
+    }
+
     const url = new URL(request.url);
     const action = url.pathname.replace(/^\/(?:api|\.netlify\/functions\/api)\/?/, "").replace(/\/$/, "");
     const body = request.method === "GET" ? {} : await request.json().catch(() => ({}));
@@ -182,7 +196,8 @@ async function getImage(key) {
     status: 200,
     headers: {
       "content-type": entry.metadata?.contentType || "image/jpeg",
-      "cache-control": "public, max-age=31536000, immutable"
+      "cache-control": "public, max-age=31536000, immutable",
+      ...corsHeaders
     }
   });
 }
