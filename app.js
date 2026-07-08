@@ -8,6 +8,20 @@ const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
 const CHROME_BOOKING_URL = `googlechromes://${BOOKING_URL.replace(/^https:\/\//, "")}`;
+const APP_CONFIG = window.APocalypse249Config || {};
+const API_BASE_URL = String(APP_CONFIG.apiBaseUrl || "").replace(/\/$/, "");
+const APP_BUILD_LABEL = "Native build 8.0 live API";
+
+const originalFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+  if (typeof input === "string" && input.includes("/.netlify/functions/api/")) {
+    input = input.replace("/.netlify/functions/api/", "/api/");
+  } else if (input instanceof Request && input.url.includes("/.netlify/functions/api/")) {
+    input = new Request(input.url.replace("/.netlify/functions/api/", "/api/"), input);
+  }
+
+  return originalFetch(input, init);
+};
 
 const defaultState = {
   currentUserId: null,
@@ -227,33 +241,31 @@ async function apiRequest(action, body = {}) {
     body: JSON.stringify(body)
   });
 
-  if (!result.ok && apiOnline !== "direct") {
-    const directResult = await fetchJson(`/.netlify/functions/api/${action}`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(sessionToken ? { authorization: `Bearer ${sessionToken}` } : {})
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (directResult.ok) {
-      apiOnline = "direct";
-      renderBackendStatus();
-    }
-
-    result = directResult;
-  }
-
   if (!result.ok) throw new Error(result.data?.error || result.error || "Something went wrong.");
   return result.data;
 }
 
 function apiUrl(action) {
-  return apiOnline === "direct" ? `/.netlify/functions/api/${action}` : `/api/${action}`;
+  if (API_BASE_URL) return `${API_BASE_URL}/api/${action}`;
+  return `/api/${action}`;
+}
+
+function apiDirectUrl(action) {
+  return apiUrl(action);
+}
+
+function mediaUrl(value) {
+  if (!value) return "";
+  if (/^(?:https?:|data:|blob:|assets\/)/.test(value)) return value;
+  if (API_BASE_URL && value.startsWith("/")) return `${API_BASE_URL}${value}`;
+  return value;
 }
 
 async function fetchJson(url, options = {}) {
+  if (typeof url === "string" && url.includes("/.netlify/functions/api/")) {
+    url = url.replace("/.netlify/functions/api/", "/api/");
+  }
+
   try {
     const response = await fetch(url, options);
     const text = await response.text();
@@ -348,13 +360,14 @@ function preserveLocalStateBackup(reason = "manual") {
 async function detectApiMode() {
   let functionHealthWorks = false;
 
-  const apiHealth = await fetchJson("/api/health", { cache: "no-store" });
+  const apiHealth = await fetchJson(apiUrl("health"), { cache: "no-store" });
   if (apiHealth.ok && apiHealth.data?.ok === true) return true;
   apiDiagnostic = apiHealth.error || `/api/health returned ${apiHealth.status}.`;
 
-  const directApiHealth = await fetchJson("/.netlify/functions/api/health", { cache: "no-store" });
-  if (directApiHealth.ok && directApiHealth.data?.ok === true) return "direct";
-  apiDiagnostic += ` ${directApiHealth.error || `Direct function URL returned ${directApiHealth.status}.`}`;
+  if (API_BASE_URL) {
+    apiDiagnostic += ` Health check failed, but the native app is configured to use ${API_BASE_URL}.`;
+    return true;
+  }
 
   try {
     const health = await fetchJson("/.netlify/functions/health", { cache: "no-store" });
@@ -386,7 +399,7 @@ function renderBackendStatus() {
   if (!detail) return;
 
   if (apiOnline) {
-    detail.textContent = "Backend connected.";
+    detail.textContent = API_BASE_URL ? `${APP_BUILD_LABEL}. Backend connected: ${API_BASE_URL}` : `${APP_BUILD_LABEL}. Backend connected.`;
   } else if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
     detail.textContent = "This is expected on the local preview. Check your live Netlify URL for shared mode.";
   } else {
@@ -870,7 +883,7 @@ function fillProfileForm(user) {
 
 function renderProfileCard(user) {
   $("#profilePreview").innerHTML = user.photo
-    ? `<img src="${user.photo}" alt="${escapeHtml(user.name)}" />`
+    ? `<img src="${mediaUrl(user.photo)}" alt="${escapeHtml(user.name)}" />`
     : "Profile photo";
   $("#cardName").textContent = user.name || "Player name";
   $("#cardPlayerNumber").textContent = user.playerNumber || "Not assigned";
@@ -893,7 +906,7 @@ function renderRifs(user) {
     const card = template.querySelector(".rif-card");
     card.dataset.id = rif.id;
     template.querySelector(".rif-image").innerHTML = rif.photo
-      ? `<img src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
+      ? `<img src="${mediaUrl(rif.photo)}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
       : "RIF photo";
     template.querySelector("h2").textContent = `${rif.make} ${rif.model}`;
     const chronoParts = [
@@ -939,7 +952,7 @@ function renderRifWishlist(user) {
     const card = template.querySelector(".rif-card");
     card.dataset.id = rif.id;
     template.querySelector(".rif-image").innerHTML = rif.photo
-      ? `<img src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
+      ? `<img src="${mediaUrl(rif.photo)}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
       : "Wishlist photo";
     template.querySelector("h2").textContent = `${rif.make} ${rif.model}`;
     template.querySelector("p").textContent = `${rif.type} | Serial: ${rif.serial || "Not set"}`;
@@ -1129,7 +1142,7 @@ function renderAnnouncements() {
       const hasCheered = announcement.cheers.includes(user.id);
       return `
         <article class="announcement-card">
-          ${announcement.image ? `<img src="${announcement.image}" alt="Announcement image" />` : ""}
+          ${announcement.image ? `<img src="${mediaUrl(announcement.image)}" alt="Announcement image" />` : ""}
           <div class="announcement-body">
             <p>${escapeHtml(announcement.text)}</p>
             <div class="announcement-actions">
@@ -1163,7 +1176,7 @@ function renderEarlyAccess() {
     .map(
       (post) => `
         <article class="announcement-card">
-          ${post.image ? `<img src="${post.image}" alt="Early access image" />` : ""}
+          ${post.image ? `<img src="${mediaUrl(post.image)}" alt="Early access image" />` : ""}
           <div class="announcement-body">
             <p>${escapeHtml(post.text)}</p>
             ${
@@ -1573,7 +1586,7 @@ function renderAdminWishlist() {
         <article class="user-row wishlist-row">
           ${
             rif.photo
-              ? `<img class="wishlist-admin-thumb" src="${rif.photo}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
+              ? `<img class="wishlist-admin-thumb" src="${mediaUrl(rif.photo)}" alt="${escapeHtml(rif.make)} ${escapeHtml(rif.model)}" />`
               : `<div class="wishlist-admin-thumb">RIF</div>`
           }
           <div>

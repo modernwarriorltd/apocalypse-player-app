@@ -31,6 +31,14 @@ When deployed to Netlify with the included function, users, approvals, RIFs, eve
 
 Uploaded profile, RIF and announcement images are stored separately in a Netlify Blobs image store. The main app data stores only image URLs, which keeps updates faster and avoids browser storage quota problems.
 
+## iOS and Android app store builds
+
+The project includes Capacitor setup for native iOS and Android shells. See `NATIVE_APP_RELEASE.md` before building store versions.
+
+Data is retained by keeping the existing Netlify site as the single backend. Before building native apps, set the live Netlify URL in `app-config.js` so iOS and Android logins use the same user database and image store as the web app.
+
+Do not create a new Netlify site for the store apps unless you first export and import the data from Admin > Backup.
+
 Calendar events can be one-off or recurring daily, weekly, monthly or yearly, with an optional repeat-until date and booking link.
 
 The app includes Site Rules, a Joules/FPS chart, and a Contact Us form. Contact form submissions are saved into the admin backend for review and reply.

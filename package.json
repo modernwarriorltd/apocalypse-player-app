@@ -2,7 +2,21 @@
   "name": "apocalypse-249-player-app",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "build:native": "node scripts/prepare-native.mjs",
+    "cap:add:ios": "npm run build:native && npx cap add ios",
+    "cap:add:android": "npm run build:native && npx cap add android",
+    "cap:sync": "npm run build:native && npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android"
+  },
   "dependencies": {
     "@netlify/blobs": "^8.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.4.0",
+    "@capacitor/cli": "^7.4.0",
+    "@capacitor/core": "^7.4.0",
+    "@capacitor/ios": "^7.4.0"
   }
 }
