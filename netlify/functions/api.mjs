@@ -64,7 +64,7 @@ const defaultState = () => ({
 export default async (request) => {
   try {
     if (request.method === "OPTIONS") {
-      return new Response("ok", {
+      return new Response(null, {
         status: 204,
         headers: corsHeaders
       });
