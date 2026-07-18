@@ -93,6 +93,7 @@ export default async (request) => {
 
     if (action === "auth/me") return json(200, { user: safeUser(user), data: publicData(state) });
     if (action === "auth/logout") return logout(state, request.headers.get("authorization") || "");
+    if (action === "auth/delete-account") return deleteOwnAccount(state, user, request.headers.get("authorization") || "");
     if (action === "profile/update") return updateProfile(state, user, body);
     if (action === "rifs/save") return saveRif(state, user, body);
     if (action === "rifs/delete") return deleteRif(state, user, body);
@@ -432,6 +433,30 @@ async function logout(state, authorization = "") {
   delete state.sessions[token];
   await saveState(state);
   return json(200, { ok: true });
+}
+
+async function deleteOwnAccount(state, sessionUser, authorization = "") {
+  const token = authorization.replace(/^Bearer\s+/i, "");
+  const email = String(sessionUser.email || "").toLowerCase();
+
+  if (email === OWNER_ADMIN_EMAIL) {
+    return json(400, { error: "The owner admin account cannot be deleted in the app." });
+  }
+
+  state.users = state.users.filter((user) => user.id !== sessionUser.id);
+  Object.entries(state.sessions || {}).forEach(([sessionToken, userId]) => {
+    if (userId === sessionUser.id || sessionToken === token) {
+      delete state.sessions[sessionToken];
+    }
+  });
+
+  state.announcements = (state.announcements || []).map((announcement) => ({
+    ...announcement,
+    cheers: (announcement.cheers || []).filter((userId) => userId !== sessionUser.id)
+  }));
+
+  await saveState(state);
+  return json(200, { ok: true, message: "Your account has been deleted." });
 }
 
 async function resetPassword(state, body) {
