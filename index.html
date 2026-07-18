@@ -8,7 +8,7 @@
     <meta http-equiv="Expires" content="0" />
     <title>Apocalypse 249 Player App</title>
     <link rel="manifest" href="manifest.webmanifest?v=20260706-native-ready" />
-    <link rel="stylesheet" href="styles.css?v=20260717-home-id-tabbar-v16" />
+    <link rel="stylesheet" href="styles.css?v=20260718-home-rif-thumbs-v18" />
   </head>
   <body>
     <div class="app-shell">
@@ -108,8 +108,9 @@
                 <div class="home-id-main">
                   <div class="home-id-photo" id="homeProfilePhoto">Photo</div>
                   <div class="home-id-details">
-                    <p class="eyebrow">Player ID</p>
+                    <p class="eyebrow">Apocalypse ID</p>
                     <h2 id="homePlayerName">Player name</h2>
+                    <p class="home-ukara-line" id="homeUkaraLine">UKARA not added</p>
                     <dl>
                       <div>
                         <dt>Email</dt>
@@ -126,7 +127,7 @@
                     </dl>
                   </div>
                 </div>
-                <div class="home-rif-strip" id="homeRifSummary">No RIFs added yet.</div>
+                <div class="home-rif-strip" id="homeRifSummary" aria-label="RIF list summary">No RIFs added yet.</div>
                 <div class="home-direct-actions" aria-label="Quick profile actions">
                   <button type="button" data-view="profile">My Profile</button>
                   <button type="button" data-view="rifs">RIFs</button>
@@ -192,11 +193,11 @@
             </div>
           </section>
 
-          <section class="view hidden" id="moreView">
+          <section class="view hidden" id="updatesView">
             <div class="hub-page">
               <div class="page-heading">
-                <p class="eyebrow">More</p>
-                <h1>Updates and site info</h1>
+                <p class="eyebrow">Updates</p>
+                <h1>Latest news</h1>
               </div>
               <div class="home-quick-grid hub-grid">
                 <button class="home-mini-card hub-card" type="button" data-view="announcements">
@@ -207,6 +208,21 @@
                   <span>Priority</span>
                   <strong>Early Access</strong>
                 </button>
+                <button class="home-mini-card hub-card" type="button" data-view="socials">
+                  <span>Links</span>
+                  <strong>Socials</strong>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view hidden" id="siteInfoView">
+            <div class="hub-page">
+              <div class="page-heading">
+                <p class="eyebrow">Site Info</p>
+                <h1>Rules and help</h1>
+              </div>
+              <div class="home-quick-grid hub-grid">
                 <button class="home-mini-card hub-card" type="button" data-view="siteDetails">
                   <span>Map</span>
                   <strong>Site Details</strong>
@@ -214,10 +230,6 @@
                 <button class="home-mini-card hub-card" type="button" data-view="joules">
                   <span>Limits</span>
                   <strong>Joules/FPS</strong>
-                </button>
-                <button class="home-mini-card hub-card" type="button" data-view="socials">
-                  <span>Links</span>
-                  <strong>Socials</strong>
                 </button>
                 <button class="home-mini-card hub-card" type="button" data-view="contact">
                   <span>Support</span>
@@ -636,7 +648,7 @@
               <h1>Manage players and events</h1>
             </div>
 
-            <div class="admin-launcher" aria-label="Admin sections">
+            <div class="admin-launcher" id="adminLauncher" aria-label="Admin sections">
               <button class="home-tile admin-section-button" type="button" data-admin-target="users">
                 <span class="tile-kicker">Players</span>
                 <strong>User Approval</strong>
@@ -679,8 +691,10 @@
               </button>
             </div>
 
+            <button class="small-button admin-back-button hidden" type="button" id="adminBackToMenu">Back to admin menu</button>
+
             <div class="admin-grid">
-              <div class="admin-panel admin-section" data-admin-section="users">
+              <div class="admin-panel admin-section hidden" data-admin-section="users">
                 <div class="panel-title-row">
                   <h2>Players</h2>
                   <button class="small-button" type="button" id="refreshAdminData">Refresh list</button>
@@ -688,7 +702,7 @@
                 <div class="admin-users" id="adminUsers"></div>
               </div>
 
-              <div class="admin-panel admin-section" data-admin-section="users">
+              <div class="admin-panel admin-section hidden" data-admin-section="users">
                 <h2>Edit selected player</h2>
                 <form id="adminUserForm">
                   <input type="hidden" id="adminUserId" />
@@ -841,18 +855,27 @@
 
           <nav class="bottom-nav" aria-label="Main app sections">
             <button class="bottom-nav-button is-active" type="button" data-view="home">
+              <span class="nav-icon nav-home" aria-hidden="true"></span>
               <span>Home</span>
             </button>
             <button class="bottom-nav-button" type="button" data-view="kit">
+              <span class="nav-icon nav-kit" aria-hidden="true"></span>
               <span>My Kit</span>
             </button>
             <button class="bottom-nav-button" type="button" data-view="gameDay">
+              <span class="nav-icon nav-game" aria-hidden="true"></span>
               <span>Game Day</span>
             </button>
-            <button class="bottom-nav-button" type="button" data-view="more">
-              <span>More</span>
+            <button class="bottom-nav-button" type="button" data-view="updates">
+              <span class="nav-icon nav-updates" aria-hidden="true"></span>
+              <span>Updates</span>
+            </button>
+            <button class="bottom-nav-button" type="button" data-view="siteInfo">
+              <span class="nav-icon nav-site" aria-hidden="true"></span>
+              <span>Site Info</span>
             </button>
             <button class="bottom-nav-button admin-only hidden" type="button" data-view="admin">
+              <span class="nav-icon nav-admin" aria-hidden="true"></span>
               <span>Admin</span>
             </button>
           </nav>
@@ -888,7 +911,7 @@
       </article>
     </template>
 
-    <script src="app-config.js?v=20260717-home-id-tabbar-v16"></script>
-    <script src="app.js?v=20260717-home-id-tabbar-v16"></script>
+    <script src="app-config.js?v=20260718-home-rif-thumbs-v18"></script>
+    <script src="app.js?v=20260718-home-rif-thumbs-v18"></script>
   </body>
 </html>

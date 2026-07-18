@@ -9,7 +9,7 @@ const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
 const APP_CONFIG = window.APocalypse249Config || {};
 const API_BASE_URL = String(APP_CONFIG.apiBaseUrl || "").replace(/\/$/, "");
-const APP_BUILD_LABEL = "Native build 16.0 live API";
+const APP_BUILD_LABEL = "Native build 18.0 live API";
 
 const originalFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
@@ -605,6 +605,20 @@ function notificationSignature(viewName) {
       .join("|");
   }
 
+  if (viewName === "updates") {
+    return [
+      notificationSignature("announcements"),
+      notificationSignature("earlyAccess")
+    ].join("||");
+  }
+
+  if (viewName === "siteInfo") {
+    return [
+      notificationSignature("calendar"),
+      (state.contactMessages || []).map((message) => `${message.id}:${message.createdAt || ""}:${message.subject || ""}`).sort().join("|")
+    ].join("||");
+  }
+
   if (viewName === "calendar") {
     return [...state.events]
       .map((event) => `${event.id}:${event.date || ""}:${event.title || ""}:${event.repeats || ""}:${event.repeatUntil || ""}`)
@@ -727,13 +741,13 @@ function setView(viewName) {
     rifs: "kit",
     booking: "gameDay",
     calendar: "gameDay",
-    announcements: "more",
-    earlyAccess: "more",
-    siteDetails: "more",
-    rules: "more",
-    joules: "more",
-    socials: "more",
-    contact: "more"
+    announcements: "updates",
+    earlyAccess: "updates",
+    socials: "updates",
+    siteDetails: "siteInfo",
+    rules: "siteInfo",
+    joules: "siteInfo",
+    contact: "siteInfo"
   };
   const activeNavView = navGroups[viewName] || viewName;
 
@@ -746,6 +760,7 @@ function setView(viewName) {
   markTabSeen(viewName);
 
   if (viewName === "admin") {
+    setAdminSection();
     refreshSharedData().then(() => renderAdmin());
     startAdminAutoRefresh();
   } else {
@@ -771,9 +786,12 @@ function setView(viewName) {
   renderTabNotifications();
 }
 
-function setAdminSection(sectionName = "users") {
+function setAdminSection(sectionName = "") {
+  const hasSection = Boolean(sectionName);
+  $("#adminLauncher")?.classList.toggle("hidden", hasSection);
+  $("#adminBackToMenu")?.classList.toggle("hidden", !hasSection);
   $$(".admin-section").forEach((section) => {
-    section.classList.toggle("hidden", section.dataset.adminSection !== sectionName);
+    section.classList.toggle("hidden", !hasSection || section.dataset.adminSection !== sectionName);
   });
   $$(".admin-section-button").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.adminTarget === sectionName);
@@ -914,24 +932,34 @@ function renderHomeCard(user) {
   const ukaraText = user.ukara
     ? `UKARA ${user.ukaraExpiry ? `expires ${formatDate(user.ukaraExpiry)}` : "added"}`
     : "UKARA not added";
-  const rifSummary = rifCount
-    ? (user.rifs || [])
-      .slice(0, 3)
-      .map((rif) => `${rif.make || "RIF"} ${rif.model || ""}`.trim())
-      .filter(Boolean)
-      .join(" | ")
-    : "No RIFs added yet.";
 
-  $("#homePlayerNumber").textContent = user.playerNumber || "APOC-PLAYER";
-  $("#homeUkaraStatus").textContent = ukaraText;
+  $("#homePlayerNumber").textContent = `ID ${user.playerNumber || "Not assigned"}`;
+  $("#homeUkaraStatus").textContent = `${rifCount} RIF${rifCount === 1 ? "" : "s"} logged`;
   $("#homeProfilePhoto").innerHTML = user.photo
     ? `<img src="${mediaUrl(user.photo)}" alt="${escapeHtml(user.name || "Player photo")}" />`
     : "Photo";
   $("#homePlayerName").textContent = user.name || "Player name";
+  $("#homeUkaraLine").textContent = ukaraText;
   $("#homePlayerEmail").textContent = user.email || "Not added";
   $("#homePlayerPhone").textContent = user.phone || "Not added";
   $("#homeRifCount").textContent = `${rifCount} logged`;
-  $("#homeRifSummary").textContent = rifCount > 3 ? `${rifSummary} + ${rifCount - 3} more` : rifSummary;
+  $("#homeRifSummary").innerHTML = rifCount
+    ? (user.rifs || [])
+      .slice(0, 4)
+      .map((rif) => {
+        const title = `${rif.make || "RIF"} ${rif.model || ""}`.trim();
+        const thumb = rif.photo
+          ? `<img src="${mediaUrl(rif.photo)}" alt="${escapeHtml(title)}" />`
+          : `<span class="rif-thumb-placeholder">RIF</span>`;
+        return `
+          <article class="home-rif-chip">
+            <span class="home-rif-thumb">${thumb}</span>
+            <span class="home-rif-name">${escapeHtml(title)}</span>
+          </article>
+        `;
+      })
+      .join("") + (rifCount > 4 ? `<span class="home-rif-more">+${rifCount - 4} more</span>` : "")
+    : "No RIFs added yet.";
 }
 
 function renderRifs(user) {
@@ -2541,6 +2569,8 @@ $("#backupImportFile").addEventListener("change", (event) => {
 $$(".admin-section-button").forEach((button) => {
   button.addEventListener("click", () => setAdminSection(button.dataset.adminTarget));
 });
+
+$("#adminBackToMenu")?.addEventListener("click", () => setAdminSection());
 
 $("#prevMonth").addEventListener("click", () => {
   calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
