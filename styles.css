@@ -27,6 +27,7 @@ body {
     var(--paper);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow-x: hidden;
 }
 
 button,
@@ -44,7 +45,7 @@ a {
 .app-shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 24px 0 48px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 0 calc(48px + env(safe-area-inset-bottom, 0px));
 }
 
 .site-header {
@@ -55,7 +56,7 @@ a {
 }
 
 .logo-button {
-  width: min(300px, 78vw);
+  width: min(260px, 72vw);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.9);
@@ -166,7 +167,8 @@ textarea {
   border-radius: 6px;
   background: var(--field);
   color: var(--ink);
-  padding: 12px;
+  min-height: 48px;
+  padding: 12px 14px;
   outline: 0;
 }
 
@@ -185,7 +187,7 @@ textarea {
 .secondary-action,
 .small-button,
 .text-button {
-  min-height: 44px;
+  min-height: 48px;
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
@@ -214,8 +216,8 @@ textarea {
 }
 
 .small-button {
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 42px;
+  padding: 0 14px;
 }
 
 .text-button {
@@ -235,6 +237,23 @@ textarea {
   color: #ffd6d2;
   background: #3a1613;
   border-color: #772720;
+}
+
+.account-danger-zone {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.account-danger-zone h2,
+.account-danger-zone p {
+  margin: 0;
+}
+
+.account-danger-zone h2 {
+  font-size: 1rem;
 }
 
 .demo-note,
@@ -279,6 +298,10 @@ textarea {
   margin-bottom: 20px;
 }
 
+.dashboard {
+  padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+}
+
 .tab {
   position: relative;
   flex: 1 0 auto;
@@ -311,7 +334,9 @@ textarea {
 
 .home-landing {
   display: grid;
-  gap: 22px;
+  gap: 14px;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .home-title {
@@ -323,8 +348,8 @@ textarea {
 .home-title h1 {
   margin: 4px 0 6px;
   text-transform: uppercase;
-  font-size: clamp(2rem, 7vw, 4.6rem);
-  line-height: 0.95;
+  font-size: clamp(2rem, 6vw, 3.8rem);
+  line-height: 1;
   color: #f12424;
   text-shadow: 0 2px 0 #050505;
 }
@@ -336,15 +361,233 @@ textarea {
   text-transform: uppercase;
 }
 
-.home-launcher {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+.home-id-card {
+  border: 1px solid rgba(241, 36, 36, 0.72);
+  border-radius: 18px;
+  background:
+    linear-gradient(150deg, rgba(241, 36, 36, 0.18), rgba(11, 14, 11, 0.98) 42%),
+    #10140f;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+
+.home-id-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8f5ee;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.home-id-main {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 16px;
+  padding: 18px;
+  align-items: center;
+}
+
+.home-id-photo {
+  width: 128px;
+  aspect-ratio: 3 / 4;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd6c6;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.home-id-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-id-details h2 {
+  margin: 4px 0 12px;
+  color: #f8f5ee;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.home-id-details dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.home-id-details dt {
+  color: #9fad95;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.home-id-details dd {
+  margin: 2px 0 0;
+  color: #f8f5ee;
+  font-size: 0.88rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.home-rif-strip {
+  margin: 0 18px 14px;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd6c6;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.home-direct-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 18px 18px;
+}
+
+.home-direct-actions button,
+.home-mini-card,
+.bottom-nav-button {
+  position: relative;
+}
+
+.home-direct-actions button {
+  flex: 1;
+  min-height: 48px;
+  border: 0;
+  border-radius: 999px;
+  background: #c8322b;
+  color: #f8f5ee;
+  cursor: pointer;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.home-direct-actions button:focus-visible,
+.home-mini-card:focus-visible,
+.bottom-nav-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 106, 97, 0.32);
+}
+
+.home-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.home-mini-card {
+  min-height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f8f5ee;
+  cursor: pointer;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 10px;
+  text-align: center;
+}
+
+.home-mini-card span {
+  color: #9fad95;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.home-mini-card strong {
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
+.bottom-nav {
+  position: sticky;
+  bottom: 10px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 18px auto 0;
+  padding: 7px;
+  width: min(620px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 22px;
+  background: rgba(7, 9, 7, 0.94);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.44);
+  backdrop-filter: blur(14px);
+}
+
+.bottom-nav:has(.admin-only:not(.hidden)) {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.bottom-nav-button {
+  min-height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #aeb9aa;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 900;
+  padding: 6px;
+  text-transform: uppercase;
+}
+
+.bottom-nav-button.is-active {
+  background: #c8322b;
+  color: #fff;
+}
+
+.home-mini-card.has-notification::after,
+.home-direct-actions button.has-notification::after,
+.bottom-nav-button.has-notification::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #10140f;
+  border-radius: 50%;
+  background: #ff5d55;
+}
+
+.hub-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.hub-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hub-card {
+  min-height: 104px;
 }
 
 .home-tile {
   position: relative;
-  min-height: 132px;
+  min-height: 118px;
   border: 1px solid rgba(241, 36, 36, 0.78);
   border-radius: 8px;
   background:
@@ -360,34 +603,16 @@ textarea {
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
 }
 
-.home-tile:hover,
-.home-tile:focus-visible,
-.home-tile.is-active {
-  border-color: #ff4f45;
-  background:
-    linear-gradient(145deg, rgba(241, 36, 36, 0.26), rgba(18, 22, 18, 0.98) 45%),
-    #151915;
-  outline: none;
-}
-
 .home-tile strong {
-  font-size: 1.35rem;
-  line-height: 1.05;
+  font-size: 1.2rem;
+  line-height: 1.08;
   text-transform: uppercase;
 }
 
 .home-tile span:last-child {
   color: #cbd6c6;
-  font-size: 0.95rem;
-  line-height: 1.35;
-}
-
-.tile-kicker {
-  color: #ff6a61;
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  font-size: 0.92rem;
+  line-height: 1.3;
 }
 
 .home-tile.has-notification::after {
@@ -400,6 +625,14 @@ textarea {
   border: 2px solid #10140f;
   border-radius: 50%;
   background: #ff5d55;
+}
+
+.tile-kicker {
+  color: #ff6a61;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .page-heading {
@@ -1079,8 +1312,28 @@ img.wishlist-admin-thumb {
 
 @media (max-width: 640px) {
   .app-shell {
-    width: min(100% - 20px, 1180px);
-    padding-top: 14px;
+    width: min(100% - 24px, 1180px);
+    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .site-header {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .logo-button {
+    width: min(178px, 54vw);
+    padding: 7px 10px;
+  }
+
+  .session-bar {
+    min-height: 28px;
+    font-size: 0.9rem;
+  }
+
+  .auth-panel {
+    gap: 12px;
   }
 
   .auth-copy,
@@ -1088,13 +1341,141 @@ img.wishlist-admin-thumb {
   .form-panel,
   .admin-panel,
   .link-page {
-    padding: 18px;
+    padding: 16px;
+  }
+
+  .auth-copy {
+    gap: 6px;
   }
 
   .auth-copy h1,
   .page-heading h1,
   .link-page h1 {
+    font-size: 1.7rem;
+    line-height: 1.08;
+  }
+
+  .auth-copy p,
+  .link-page p {
+    font-size: 0.95rem;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  .auth-card {
+    gap: 12px;
+  }
+
+  label {
+    font-size: 0.95rem;
+  }
+
+  .backend-status,
+  .backend-detail,
+  .demo-note,
+  .readonly-note {
+    font-size: 0.9rem;
+  }
+
+  .primary-action,
+  .secondary-action,
+  .small-button {
+    min-height: 50px;
+    width: 100%;
+  }
+
+  .text-button {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .home-landing {
+    gap: 14px;
+  }
+
+  .home-title h1 {
     font-size: 2rem;
+    line-height: 1;
+  }
+
+  .home-id-main {
+    grid-template-columns: 92px 1fr;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .home-id-photo {
+    width: 92px;
+    border-radius: 12px;
+  }
+
+  .home-id-topline {
+    padding: 10px 12px;
+    font-size: 0.66rem;
+  }
+
+  .home-id-details h2 {
+    font-size: 1.45rem;
+    margin-bottom: 8px;
+  }
+
+  .home-id-details dl {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .home-id-details dt {
+    font-size: 0.62rem;
+  }
+
+  .home-id-details dd {
+    font-size: 0.78rem;
+  }
+
+  .home-rif-strip {
+    margin: 0 14px 12px;
+    font-size: 0.78rem;
+  }
+
+  .home-direct-actions {
+    padding: 0 14px 14px;
+  }
+
+  .home-direct-actions button {
+    min-height: 44px;
+    font-size: 0.84rem;
+  }
+
+  .home-quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .home-mini-card {
+    min-height: 66px;
+  }
+
+  .hub-card {
+    min-height: 86px;
+  }
+
+  .bottom-nav {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    margin: 0;
+  }
+
+  .bottom-nav-button {
+    min-height: 48px;
+    font-size: 0.66rem;
+  }
+
+  .home-tile {
+    min-height: 96px;
+    padding: 12px;
+    gap: 4px;
   }
 
   .rif-form,

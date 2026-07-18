@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Apocalypse 249 Player App</title>
     <link rel="manifest" href="manifest.webmanifest?v=20260706-native-ready" />
-    <link rel="stylesheet" href="styles.css?v=20260706-native-ready" />
+    <link rel="stylesheet" href="styles.css?v=20260717-home-id-tabbar-v16" />
   </head>
   <body>
     <div class="app-shell">
@@ -97,75 +97,131 @@
             <div class="home-landing">
               <div class="home-title">
                 <p class="eyebrow">Apocalypse Player App</p>
-                <h1>Welcome, warrior</h1>
-                <p>Your game. Your kit. Your Apocalypse.</p>
+                <h1>Player pass</h1>
               </div>
 
-              <div class="home-launcher" aria-label="App sections">
-                <button class="home-tile" type="button" data-view="calendar">
-                  <span class="tile-kicker">Events</span>
+              <article class="home-id-card" aria-label="Player ID summary">
+                <div class="home-id-topline">
+                  <span id="homePlayerNumber">APOC-PLAYER</span>
+                  <span id="homeUkaraStatus">UKARA not added</span>
+                </div>
+                <div class="home-id-main">
+                  <div class="home-id-photo" id="homeProfilePhoto">Photo</div>
+                  <div class="home-id-details">
+                    <p class="eyebrow">Player ID</p>
+                    <h2 id="homePlayerName">Player name</h2>
+                    <dl>
+                      <div>
+                        <dt>Email</dt>
+                        <dd id="homePlayerEmail">Not added</dd>
+                      </div>
+                      <div>
+                        <dt>Phone</dt>
+                        <dd id="homePlayerPhone">Not added</dd>
+                      </div>
+                      <div>
+                        <dt>RIFs</dt>
+                        <dd id="homeRifCount">0 logged</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+                <div class="home-rif-strip" id="homeRifSummary">No RIFs added yet.</div>
+                <div class="home-direct-actions" aria-label="Quick profile actions">
+                  <button type="button" data-view="profile">My Profile</button>
+                  <button type="button" data-view="rifs">RIFs</button>
+                </div>
+              </article>
+
+              <div class="home-quick-grid" aria-label="Quick links">
+                <button class="home-mini-card" type="button" data-view="booking">
+                  <span>Game Day</span>
+                  <strong>Book now</strong>
+                </button>
+                <button class="home-mini-card" type="button" data-view="calendar">
+                  <span>Events</span>
                   <strong>Calendar</strong>
-                  <span>View upcoming games and dates.</span>
                 </button>
-                <button class="home-tile" type="button" data-view="booking">
-                  <span class="tile-kicker">Booking</span>
-                  <strong>Book Now</strong>
-                  <span>Open the site booking page.</span>
-                </button>
-                <button class="home-tile" type="button" data-view="profile">
-                  <span class="tile-kicker">Player ID</span>
-                  <strong>My Profile</strong>
-                  <span>Manage your player details and UKARA.</span>
-                </button>
-                <button class="home-tile" type="button" data-view="rifs">
-                  <span class="tile-kicker">Armoury</span>
-                  <strong>RIFs</strong>
-                  <span>Track owned RIFs and wishlist items.</span>
-                </button>
-                <button class="home-tile" type="button" data-view="announcements">
-                  <span class="tile-kicker">News</span>
+                <button class="home-mini-card" type="button" data-view="announcements">
+                  <span>Latest</span>
                   <strong>Updates</strong>
-                  <span>Read the latest site updates.</span>
                 </button>
-                <button class="home-tile" type="button" data-view="earlyAccess">
-                  <span class="tile-kicker">Offers</span>
+                <button class="home-mini-card" type="button" data-view="siteDetails">
+                  <span>Site</span>
+                  <strong>Details</strong>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view hidden" id="kitView">
+            <div class="hub-page">
+              <div class="page-heading">
+                <p class="eyebrow">My Kit</p>
+                <h1>Profile and RIFs</h1>
+              </div>
+              <div class="home-quick-grid hub-grid">
+                <button class="home-mini-card hub-card" type="button" data-view="profile">
+                  <span>Player ID</span>
+                  <strong>My Profile</strong>
+                </button>
+                <button class="home-mini-card hub-card" type="button" data-view="rifs">
+                  <span>Armoury</span>
+                  <strong>RIFs</strong>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view hidden" id="gameDayView">
+            <div class="hub-page">
+              <div class="page-heading">
+                <p class="eyebrow">Game Day</p>
+                <h1>Book and plan</h1>
+              </div>
+              <div class="home-quick-grid hub-grid">
+                <button class="home-mini-card hub-card" type="button" data-view="booking">
+                  <span>Booking</span>
+                  <strong>Book now</strong>
+                </button>
+                <button class="home-mini-card hub-card" type="button" data-view="calendar">
+                  <span>Events</span>
+                  <strong>Calendar</strong>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="view hidden" id="moreView">
+            <div class="hub-page">
+              <div class="page-heading">
+                <p class="eyebrow">More</p>
+                <h1>Updates and site info</h1>
+              </div>
+              <div class="home-quick-grid hub-grid">
+                <button class="home-mini-card hub-card" type="button" data-view="announcements">
+                  <span>Latest</span>
+                  <strong>Updates</strong>
+                </button>
+                <button class="home-mini-card hub-card" type="button" data-view="earlyAccess">
+                  <span>Priority</span>
                   <strong>Early Access</strong>
-                  <span>See limited previews and priority links.</span>
                 </button>
-                <button class="home-tile" type="button" data-view="siteDetails">
-                  <span class="tile-kicker">Map</span>
+                <button class="home-mini-card hub-card" type="button" data-view="siteDetails">
+                  <span>Map</span>
                   <strong>Site Details</strong>
-                  <span>View the site map and markers.</span>
                 </button>
-                <button class="home-tile" type="button" data-view="rules">
-                  <span class="tile-kicker">Safety</span>
-                  <strong>Site Rules</strong>
-                  <span>Check rules before game day.</span>
-                </button>
-                <button class="home-tile" type="button" data-view="joules">
-                  <span class="tile-kicker">Limits</span>
+                <button class="home-mini-card hub-card" type="button" data-view="joules">
+                  <span>Limits</span>
                   <strong>Joules/FPS</strong>
-                  <span>Check site power limits and chart.</span>
                 </button>
-                <button class="home-tile" type="button" data-view="supplies">
-                  <span class="tile-kicker">Shop</span>
-                  <strong>Supplies</strong>
-                  <span>Open Modern Warrior supplies.</span>
-                </button>
-                <button class="home-tile" type="button" data-view="socials">
-                  <span class="tile-kicker">Community</span>
+                <button class="home-mini-card hub-card" type="button" data-view="socials">
+                  <span>Links</span>
                   <strong>Socials</strong>
-                  <span>Find the official social links.</span>
                 </button>
-                <button class="home-tile" type="button" data-view="contact">
-                  <span class="tile-kicker">Help</span>
-                  <strong>Contact Us</strong>
-                  <span>Send a question to the team.</span>
-                </button>
-                <button class="home-tile admin-only hidden" type="button" data-view="admin">
-                  <span class="tile-kicker">Admin</span>
-                  <strong>Admin Area</strong>
-                  <span>Manage players, events, and posts.</span>
+                <button class="home-mini-card hub-card" type="button" data-view="contact">
+                  <span>Support</span>
+                  <strong>Contact</strong>
                 </button>
               </div>
             </div>
@@ -232,6 +288,11 @@
                 </label>
                 <p class="readonly-note">Admins can still update UKARA details from the admin area.</p>
                 <button class="primary-action" type="submit">Save ID</button>
+                <div class="account-danger-zone">
+                  <h2>Account deletion</h2>
+                  <p>Delete your account and remove your player profile, RIF logs, wishlist, and app session.</p>
+                  <button class="small-button danger" type="button" id="deleteAccountButton">Delete my account</button>
+                </div>
               </form>
             </div>
           </section>
@@ -412,9 +473,9 @@
               <h1>Book your next event</h1>
               <p>Use the site booking system to secure your place at the next Apocalypse 249 event.</p>
               <div class="booking-form-link">
-                <button class="primary-action link-action" type="button" data-open-booking-chrome>
+                <a class="primary-action link-action" href="https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/" target="_blank" rel="noopener noreferrer" data-open-booking>
                   Book now
-                </button>
+                </a>
               </div>
             </div>
           </section>
@@ -777,6 +838,24 @@
               </div>
             </div>
           </section>
+
+          <nav class="bottom-nav" aria-label="Main app sections">
+            <button class="bottom-nav-button is-active" type="button" data-view="home">
+              <span>Home</span>
+            </button>
+            <button class="bottom-nav-button" type="button" data-view="kit">
+              <span>My Kit</span>
+            </button>
+            <button class="bottom-nav-button" type="button" data-view="gameDay">
+              <span>Game Day</span>
+            </button>
+            <button class="bottom-nav-button" type="button" data-view="more">
+              <span>More</span>
+            </button>
+            <button class="bottom-nav-button admin-only hidden" type="button" data-view="admin">
+              <span>Admin</span>
+            </button>
+          </nav>
         </section>
       </main>
     </div>
@@ -809,7 +888,7 @@
       </article>
     </template>
 
-    <script src="app-config.js?v=20260708-live-api-v8"></script>
-    <script src="app.js?v=20260708-live-api-v8"></script>
+    <script src="app-config.js?v=20260717-home-id-tabbar-v16"></script>
+    <script src="app.js?v=20260717-home-id-tabbar-v16"></script>
   </body>
 </html>

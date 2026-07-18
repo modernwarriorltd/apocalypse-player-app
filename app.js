@@ -7,10 +7,9 @@ const MAP_MARKERS_KEY = "apocalypse249MapMarkers";
 const TAB_SEEN_KEY = "apocalypse249TabSeen";
 const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
-const CHROME_BOOKING_URL = `googlechromes://${BOOKING_URL.replace(/^https:\/\//, "")}`;
 const APP_CONFIG = window.APocalypse249Config || {};
 const API_BASE_URL = String(APP_CONFIG.apiBaseUrl || "").replace(/\/$/, "");
-const APP_BUILD_LABEL = "Native build 8.0 live API";
+const APP_BUILD_LABEL = "Native build 16.0 live API";
 
 const originalFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
@@ -684,7 +683,7 @@ function renderTabNotifications() {
   let changed = false;
   let badgeCount = 0;
 
-  $$(".tab, .home-tile[data-view]").forEach((tab) => {
+  $$("[data-view]").forEach((tab) => {
     const viewName = tab.dataset.view;
     const signature = notificationSignature(viewName);
     const canShow = user && signature && !["home", "profile"].includes(viewName) && (viewName !== "admin" || user.role === "admin");
@@ -723,8 +722,25 @@ function setView(viewName) {
   $$(".view").forEach((view) => view.classList.add("hidden"));
   $(`#${viewName}View`)?.classList.remove("hidden");
 
-  $$(".tab, .home-tile[data-view]").forEach((tab) => {
-    tab.classList.toggle("is-active", tab.dataset.view === viewName);
+  const navGroups = {
+    profile: "kit",
+    rifs: "kit",
+    booking: "gameDay",
+    calendar: "gameDay",
+    announcements: "more",
+    earlyAccess: "more",
+    siteDetails: "more",
+    rules: "more",
+    joules: "more",
+    socials: "more",
+    contact: "more"
+  };
+  const activeNavView = navGroups[viewName] || viewName;
+
+  $$("[data-view]").forEach((tab) => {
+    const tabView = tab.dataset.view;
+    const tabNavView = navGroups[tabView] || tabView;
+    tab.classList.toggle("is-active", tabView === viewName || (tab.classList.contains("bottom-nav-button") && tabNavView === activeNavView));
   });
 
   markTabSeen(viewName);
@@ -861,6 +877,7 @@ function render() {
   $$(".admin-only").forEach((item) => item.classList.toggle("hidden", user.role !== "admin"));
 
   fillProfileForm(user);
+  renderHomeCard(user);
   renderProfileCard(user);
   renderRifs(user);
   renderRifWishlist(user);
@@ -890,6 +907,31 @@ function renderProfileCard(user) {
   $("#cardUkara").textContent = user.ukara || "Not added";
   $("#cardUkaraExpiry").textContent = formatDate(user.ukaraExpiry);
   $("#cardEmail").textContent = user.email || "Not added";
+}
+
+function renderHomeCard(user) {
+  const rifCount = (user.rifs || []).length;
+  const ukaraText = user.ukara
+    ? `UKARA ${user.ukaraExpiry ? `expires ${formatDate(user.ukaraExpiry)}` : "added"}`
+    : "UKARA not added";
+  const rifSummary = rifCount
+    ? (user.rifs || [])
+      .slice(0, 3)
+      .map((rif) => `${rif.make || "RIF"} ${rif.model || ""}`.trim())
+      .filter(Boolean)
+      .join(" | ")
+    : "No RIFs added yet.";
+
+  $("#homePlayerNumber").textContent = user.playerNumber || "APOC-PLAYER";
+  $("#homeUkaraStatus").textContent = ukaraText;
+  $("#homeProfilePhoto").innerHTML = user.photo
+    ? `<img src="${mediaUrl(user.photo)}" alt="${escapeHtml(user.name || "Player photo")}" />`
+    : "Photo";
+  $("#homePlayerName").textContent = user.name || "Player name";
+  $("#homePlayerEmail").textContent = user.email || "Not added";
+  $("#homePlayerPhone").textContent = user.phone || "Not added";
+  $("#homeRifCount").textContent = `${rifCount} logged`;
+  $("#homeRifSummary").textContent = rifCount > 3 ? `${rifSummary} + ${rifCount - 3} more` : rifSummary;
 }
 
 function renderRifs(user) {
@@ -1077,6 +1119,7 @@ async function deleteRif(rifId) {
     try {
       const result = await apiRequest("rifs/delete", { id: rifId });
       applyServerData(result);
+      renderHomeCard(currentUser());
       renderRifs(currentUser());
       return;
     } catch (error) {
@@ -1087,6 +1130,7 @@ async function deleteRif(rifId) {
 
   user.rifs = user.rifs.filter((rif) => rif.id !== rifId);
   saveState();
+  renderHomeCard(user);
   renderRifs(user);
 }
 
@@ -1355,7 +1399,7 @@ function renderEvents() {
               ${repeatLabel(event) ? `<p>${escapeHtml(repeatLabel(event))}</p>` : ""}
               <p>${escapeHtml(event.notes || "No extra notes.")}</p>
               <div class="event-booking-form">
-                <button class="small-button event-booking-link" type="button" data-open-booking-chrome>Book now</button>
+                <a class="small-button event-booking-link" href="${escapeHtml(BOOKING_URL)}" target="_blank" rel="noopener noreferrer" data-open-booking>Book now</a>
               </div>
             </article>
           `
@@ -1787,6 +1831,46 @@ async function deleteUser(userId) {
   renderAdmin();
 }
 
+async function deleteCurrentAccount() {
+  const user = currentUser();
+  if (!user) return;
+
+  if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
+    alert("The owner admin account cannot be deleted in the app.");
+    return;
+  }
+
+  const firstConfirm = window.confirm("Delete your account? This permanently removes your player profile, RIF logs, wishlist, and app session.");
+  if (!firstConfirm) return;
+
+  const secondConfirm = window.confirm("This cannot be undone. Confirm account deletion?");
+  if (!secondConfirm) return;
+
+  const deleteButton = $("#deleteAccountButton");
+  deleteButton.disabled = true;
+  deleteButton.textContent = "Deleting...";
+
+  try {
+    if (apiOnline && sessionToken) {
+      await apiRequest("auth/delete-account");
+    } else {
+      state.users = state.users.filter((item) => item.id !== user.id);
+    }
+
+    sessionToken = "";
+    localStorage.removeItem(SESSION_KEY);
+    state.currentUserId = null;
+    saveState();
+    render();
+    alert("Your account has been deleted.");
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    deleteButton.disabled = false;
+    deleteButton.textContent = "Delete my account";
+  }
+}
+
 async function exportBackup() {
   try {
     const backup = apiOnline
@@ -2124,6 +2208,8 @@ $("#profileForm").addEventListener("submit", async (event) => {
   submitButton.textContent = "Save ID";
 });
 
+$("#deleteAccountButton").addEventListener("click", deleteCurrentAccount);
+
 $("#rifForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const submitButton = event.submitter;
@@ -2154,6 +2240,7 @@ $("#rifForm").addEventListener("submit", async (event) => {
       applyServerData(result);
       $("#rifForm").reset();
       $("#rifId").value = "";
+      renderHomeCard(currentUser());
       renderRifs(currentUser());
     } catch (error) {
       alert(error.message);
@@ -2173,6 +2260,7 @@ $("#rifForm").addEventListener("submit", async (event) => {
   saveState();
   $("#rifForm").reset();
   $("#rifId").value = "";
+  renderHomeCard(user);
   renderRifs(user);
   submitButton.disabled = false;
   submitButton.textContent = "Save RIF";
@@ -2492,14 +2580,30 @@ $("#siteRulesJump").addEventListener("click", () => {
 });
 
 document.addEventListener("click", (event) => {
-  const chromeButton = event.target.closest("[data-open-booking-chrome]");
-  if (!chromeButton) return;
+  const bookingButton = event.target.closest("[data-open-booking], [data-open-booking-chrome]");
+  if (!bookingButton) return;
 
-  openExternalBooking();
+  event.preventDefault();
+  openExternalBooking(bookingButton.getAttribute("href") || BOOKING_URL);
 });
 
-function openExternalBooking() {
-  window.location.href = CHROME_BOOKING_URL;
+async function openExternalBooking(url = BOOKING_URL) {
+  const targetUrl = url || BOOKING_URL;
+  const browserPlugin = window.Capacitor?.Plugins?.Browser;
+
+  if (browserPlugin?.open) {
+    try {
+      await browserPlugin.open({ url: targetUrl });
+      return;
+    } catch (error) {
+      console.warn("Native browser open failed, falling back to web navigation.", error);
+    }
+  }
+
+  const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    window.location.assign(targetUrl);
+  }
 }
 
 $("#mapStage").addEventListener("wheel", (event) => {
