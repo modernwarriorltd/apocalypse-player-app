@@ -9,7 +9,7 @@ const UKARA_REMINDER_KEY = "apocalypse249UkaraReminder";
 const BOOKING_URL = "https://apocalypse249.co.uk/v2/#book/location/3/count/1/provider/any/";
 const APP_CONFIG = window.APocalypse249Config || {};
 const API_BASE_URL = String(APP_CONFIG.apiBaseUrl || "").replace(/\/$/, "");
-const APP_BUILD_LABEL = "Native build 18.0 live API";
+const APP_BUILD_LABEL = "Native build 19.0 live API";
 
 const originalFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
@@ -196,6 +196,7 @@ function migrateState(loadedState) {
     if (user.email?.toLowerCase() === OWNER_ADMIN_EMAIL) {
       user.role = "admin";
       user.approved = true;
+      user.playerNumber = "1";
     }
   });
 
@@ -929,17 +930,16 @@ function renderProfileCard(user) {
 
 function renderHomeCard(user) {
   const rifCount = (user.rifs || []).length;
-  const ukaraText = user.ukara
-    ? `UKARA ${user.ukaraExpiry ? `expires ${formatDate(user.ukaraExpiry)}` : "added"}`
-    : "UKARA not added";
+  const ukaraNumberText = user.ukara ? `UKARA ${user.ukara}` : "UKARA not added";
+  const ukaraExpiryText = user.ukaraExpiry ? `UKARA expires ${formatDate(user.ukaraExpiry)}` : "UKARA expiry not set";
 
   $("#homePlayerNumber").textContent = `ID ${user.playerNumber || "Not assigned"}`;
-  $("#homeUkaraStatus").textContent = `${rifCount} RIF${rifCount === 1 ? "" : "s"} logged`;
+  $("#homeUkaraStatus").textContent = ukaraExpiryText;
   $("#homeProfilePhoto").innerHTML = user.photo
     ? `<img src="${mediaUrl(user.photo)}" alt="${escapeHtml(user.name || "Player photo")}" />`
     : "Photo";
   $("#homePlayerName").textContent = user.name || "Player name";
-  $("#homeUkaraLine").textContent = ukaraText;
+  $("#homeUkaraLine").textContent = ukaraNumberText;
   $("#homePlayerEmail").textContent = user.email || "Not added";
   $("#homePlayerPhone").textContent = user.phone || "Not added";
   $("#homeRifCount").textContent = `${rifCount} logged`;
